@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="IRIS" version="26" zv="IRIS for UNIX (Red Hat Enterprise Linux for x86-64) 2020.1 (Build 217_1_20418U)" ts="2021-03-29 18:43:32">
+<Class name="HSPCPKG.HSCOMMProduction">
+<Super>HS.Util.AbstractProduction</Super>
+<TimeChanged>65827,58002.399936</TimeChanged>
+<TimeCreated>65688,64002.130739</TimeCreated>
+
+<XData name="ProductionDefinition">
+<Data><![CDATA[
+<Production Name="HSPCPKG.HSCOMMProduction" LogGeneralTraceEvents="false">
+  <Description></Description>
+  <ActorPoolSize>10</ActorPoolSize>
+  <Item Name="HSPortal_SelfEnrollment" Category="" ClassName="EnsLib.Workflow.Operation" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+    <Setting Target="Host" Name="AutoCreateRole">1</Setting>
+  </Item>
+  <Item Name="HSPortal_WorkflowService" Category="" ClassName="HSPortal.Production.Service.WorkflowService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_SelfEnrollmentProcess" Category="" ClassName="HSPortal.Production.Process.SelfEnrollmentProcess" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_HubOperation" Category="" ClassName="HSPortal.Production.Operation.HubOperation" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+    <Setting Target="Host" Name="HubProcessor">HSPortal.EHR.HubProcessor</Setting>
+  </Item>
+  <Item Name="HSPortal_FormSubmissionProcess" Category="" ClassName="HSPortal.Production.Process.FormSubmissionProcess" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_FormSubmissionService" Category="" ClassName="HSPortal.Production.Service.FormSubmissionService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_BillingService" Category="" ClassName="HSPortal.Production.Service.BillingService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_BillingProcess" Category="" ClassName="HSPortal.Production.Process.BillingProcess" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_EdgeGatewayOperation" Category="" ClassName="HS.Gateway.HSWS.RemoteOperations" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_DemographicsService" Category="" ClassName="HSPortal.Production.Service.DemographicsService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_EmailOperation" Category="" ClassName="Custom.HSPortal.Production.Operation.EmailOperation" PoolSize="2" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_HISPEmailOperation" Category="" ClassName="HSPortal.Production.Operation.EmailOperation" PoolSize="2" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_DirectEnrollmentService" Category="" ClassName="HSPortal.Production.Service.DirectEnrollmentService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_SDAService" Category="" ClassName="HSPortal.Production.Service.SDAService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_PatientSDAOperation" Category="" ClassName="HSPortal.Production.Operation.PatientSDAOperation" PoolSize="5" Enabled="false" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_DocumentService" Category="" ClassName="HSPortal.Production.Service.DocumentService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_PasswordNotificationService" Category="" ClassName="HSPortal.Production.Service.PasswordNotificationService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_PasswordNotificationProcess" Category="" ClassName="HSPortal.Production.Process.PasswordNotificationProcess" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_ActivationNotificationProcess" Category="" ClassName="HSPortal.Production.Process.ActivationNotificationProcess" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_SelfEnrollmentNotificationProcess" Category="" ClassName="HSPortal.Production.Process.SelfEnrollmentNotificationProcess" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_SDATransformer" Category="" ClassName="HSPortal.Production.Process.SDATransformer" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_TwoPhaseTransformer" Category="" ClassName="HSPortal.Production.Process.TwoPhaseTransformer" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_TransmissionBuilder" Category="" ClassName="HSPortal.Production.Process.TransmissionBuilder" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_MessageService" Category="" ClassName="HSPortal.Production.Service.MessageService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_MessageHandler_Inbox" Category="" ClassName="HSPortal.Production.Operation.InboxHandler" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_MessageHandler_ExternalSystem" Category="" ClassName="HSPortal.Production.Process.ExternalSystemMessageHandler" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_MessageHandler_Workflow" Category="" ClassName="HSPortal.Production.Process.WorkflowHandler" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_Message_WorkflowOperation" Category="" ClassName="HSPortal.Production.Operation.WorkflowOperation" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_MessageNotificationService" Category="" ClassName="HSPortal.Production.Service.MessageNotificationService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_MessageNotificationProcess" Category="" ClassName="HSPortal.Production.Process.MessageNotificationProcess" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_APIEnrollmentService" Category="" ClassName="HSPortal.Production.Service.APIEnrollmentService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_APIEnrollmentProcess" Category="" ClassName="Custom.HSPortal.Production.Process.APIEnrollmentProcess" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HS.IHE.PIXv3.Consumer.Services" Category="" ClassName="HS.IHE.PIXv3.Consumer.Services" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_PIXConsumerProcess" Category="" ClassName="HSPortal.Production.Process.PIXConsumerProcess" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+    <Setting Target="Host" Name="StatusChangeAssigningAuthorities"></Setting>
+  </Item>
+  <Item Name="HSPortal_MRNStatusChangeProcess" Category="" ClassName="HSPortal.Production.Process.MRNStatusChangeProcess" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+    <Setting Target="Host" Name="AssigningAuthorityOperationMap">"ISC-TrakCare"-TrakCareLothian_EnrolmentUpdateNotification</Setting>
+  </Item>
+  <Item Name="HSPortal_StatusChangeService" Category="" ClassName="HSPortal.Production.Service.StatusChangeService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+    <Setting Target="Host" Name="StatusChangeHandler">HSPortal_MRNStatusChangeProcess</Setting>
+  </Item>
+  <Item Name="HS.Audit.ConsolidationService" Category="" ClassName="HSPortal.Production.Service.IHEAuditConsolidationService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_APIProxyService" Category="" ClassName="HSPortal.Production.Service.APIProxyService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_APIProxyProcess" Category="" ClassName="HSPortal.Production.Process.APIProxyProcess" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HS.Util.Trace.Operations" Category="" ClassName="HS.Util.Trace.Operations" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_ActivationReminderProcess" Category="" ClassName="HSPortal.Production.Process.ActivationReminderProcess" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_ActivationReminderService" Category="" ClassName="HSPortal.Production.Service.ActivationReminderService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_AccountNotificationService" Category="" ClassName="HSPortal.Production.Service.AccountNotificationService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_PatientDocumentService" Category="" ClassName="HSPortal.Production.Service.PatientDocumentService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HSPortal_XDSbProcess" Category="" ClassName="HSPortal.Production.Process.XDSbProcess" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HS.IHE.PIXv3.Consumer.Operations" Category="" ClassName="HS.IHE.PIXv3.Consumer.Operations" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HS.IHE.XDSb.DocumentSource.Operations" Category="" ClassName="HS.IHE.XDSb.DocumentSource.Operations" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HS.IHE.XDSb.Consumer.Operations" Category="" ClassName="HS.IHE.XDSb.Consumer.Operations" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="HS.IHE.XDSb.Administrator.Operations" Category="" ClassName="HS.IHE.XDSb.Administrator.Operations" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="TrakCare_AppointmentsOperation" Category="" ClassName="Custom.Vendor.TrakCare.Production.Operation.Appointments.v1.AppointmentsOperation" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+    <Setting Target="Host" Name="SOAPServiceName">Appointment_BookingService</Setting>
+    <Setting Target="Host" Name="TrakCareAssigningAuthority">ISC-TrakCare</Setting>
+    <Setting Target="Host" Name="TrakCareCodeTableTagID">2</Setting>
+    <Setting Target="Host" Name="TrakCareUserCreds">int$api</Setting>
+    <Setting Target="Adapter" Name="Credentials">HS_Services</Setting>
+    <Setting Target="Adapter" Name="SOAPCredentials">HS_Services</Setting>
+    <Setting Target="Host" Name="TrakCareSpecialtyTable">CTLoc</Setting>
+    <Setting Target="Host" Name="BookingRangeMaxDays">21</Setting>
+    <Setting Target="Host" Name="BookingRangeMinDays">7</Setting>
+  </Item>
+  <Item Name="TrakCare_AppointmentsProcess" Category="" ClassName="Custom.Vendor.TrakCare.Production.Process.AppointmentsProcess" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+    <Setting Target="Host" Name="SubmissionTarget">TrakCare_AppointmentsOperation</Setting>
+    <Setting Target="Host" Name="CacheValidityInSecs">5</Setting>
+  </Item>
+  <Item Name="TrakCare_AppointmentsService" Category="" ClassName="Vendor.TrakCare.Production.Service.AppointmentsService" PoolSize="0" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+    <Setting Target="Host" Name="SubmissionTarget">TrakCare_AppointmentsProcess</Setting>
+  </Item>
+  <Item Name="Ayr_TrakCare" Category="" ClassName="Vendor.TrakCare.Production.Operation.Appointments.v1.AppointmentsOperationT2018" PoolSize="1" Enabled="false" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="Boarders" Category="" ClassName="Vendor.TrakCare.Production.Operation.Appointments.v1.AppointmentsOperation" PoolSize="1" Enabled="false" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="TrakCareLothian_EnrolmentUpdateNotification" Category="" ClassName="Custom.HSPortal.Production.Operation.Vendor.TrakCare.PatientStatusUpdate.v1.PatientStatusUpdateOperation" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+    <Setting Target="Host" Name="TrakCareAssigningAuthority">ISC-TrakCare</Setting>
+    <Setting Target="Host" Name="SOAPServiceName">Enrolment_NotificationService</Setting>
+  </Item>
+</Production>
+]]></Data>
+</XData>
+</Class>
+</Export>
