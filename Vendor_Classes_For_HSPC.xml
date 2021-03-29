@@ -1,0 +1,4097 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="IRIS" version="26" zv="IRIS for UNIX (Red Hat Enterprise Linux for x86-64) 2020.1 (Build 217_1_20418U)" ts="2021-03-29 16:40:14">
+<Class name="Vendor.TrakCare.Production.Message.Appointments.AbstractRequest">
+<Abstract>1</Abstract>
+<Super>%XML.Adaptor,Ens.Util.MessageBodyMethods</Super>
+<TimeChanged>65713,57674.932011</TimeChanged>
+<TimeCreated>65619,31552.619471</TimeCreated>
+
+<Property name="RequestHash">
+<Description>
+MD5 hash based on several fields to identify the request</Description>
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+<Parameter name="XMLPROJECTION" value="none"/>
+</Property>
+
+<Property name="RequestDate">
+<Description>
+Date-time when request is processed</Description>
+<Type>Ens.DataType.UTC</Type>
+<Parameter name="XMLPROJECTION" value="none"/>
+</Property>
+
+<Property name="CacheValidityInSecs">
+<Type>%Integer</Type>
+</Property>
+
+<Property name="MRN">
+<Type>%Integer</Type>
+</Property>
+
+<Property name="TrakCareAssigningAuthority">
+<Type>%String</Type>
+</Property>
+
+<Method name="Equals">
+<FormalSpec>pOther:Vendor.TrakCare.Production.Message.Appointments.AbstractRequest</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[
+	If (pOther = "") {
+		Quit 0
+	}
+	If ($CLASSNAME(pOther) '= $CLASSNAME()) {
+		Quit 0
+	}
+	Set tRequestParamsString = pOther.GetRequestParamsString()
+	If (tRequestParamsString = "") {
+		Quit 0 // not implemented
+	}
+	Quit (..GetRequestParamsString() = tRequestParamsString) && (..TrakCareAssigningAuthority = pOther.TrakCareAssigningAuthority)
+]]></Implementation>
+</Method>
+
+<Method name="GetRequestParamsString">
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[	Quit ""
+]]></Implementation>
+</Method>
+
+<Method name="GetRequestHash">
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	Set tAllFields = ..GetRequestParamsString()
+	If (tAllFields = "") {
+		Quit -1 // not implemented
+	}
+	Quit $System.Encryption.MD5Hash(tAllFields_..TrakCareAssigningAuthority)
+]]></Implementation>
+</Method>
+
+<Method name="GetCachedResponse">
+<CodeMode>objectgenerator</CodeMode>
+<FormalSpec><![CDATA[pCacheValidityInSecs=1,&pResponse:Vendor.TrakCare.Production.Message.Appointments.AbstractResponse]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If $$$CLASSabstract($$$MGINFO,%class) {
+		Do %code.WriteLine(" Quit $$$ERROR($$$NotImplemented)")
+		Quit $$$OK
+	}
+	
+	Set REQCLASSNAME = %class.Name
+	Set REQSQLTABLE = $Replace(REQCLASSNAME,".","_",,$length(REQCLASSNAME,".")-2)
+	
+	Set tResponseProperty = ""
+	For i=1:1:%class.Properties.Count() {
+		If (%class.Properties.GetAt(i).Name = "Response") {
+			Set tResponseProperty = %class.Properties.GetAt(i)
+			Quit
+		}
+	}
+	If (tResponseProperty="") {
+		Do %code.WriteLine(" Quit $$$ERROR($$$NotImplemented)")
+		Quit $$$OK
+	}
+	
+	// Check For cached requests
+	Do %code.WriteLine(" Set tRequestHash = ..GetRequestHash()")
+	
+	Do %code.WriteLine(" If (tRequestHash = -1) Quit $$$ERROR($$$NotImplemented)")
+	Do %code.WriteLine(" Set tRequestDate = ##Class(Ens.DataType.UTC).timeUTC()")
+	Do %code.WriteLine(" Set pResponse = """"")
+	Do %code.WriteLine(" If (pCacheValidityInSecs > 0) {")
+	Do %code.WriteLine("	Set tMinDate = $$$timeAddSecs(tRequestDate,-pCacheValidityInSecs)")
+			
+	Do %code.WriteLine("	&SQL(SELECT %NOLOCK TOP 1 ID,RequestDate INTO :tCachedRequestId,:tCachedRequestDate FROM "_REQSQLTABLE)
+	Do %code.WriteLine("		WHERE (RequestHash = :tRequestHash) AND (RequestDate > :tMinDate)")
+	Do %code.WriteLine("		ORDER BY RequestDate DESC)")
+	Do %code.WriteLine("	If ((SQLCODE = 0) && (tCachedRequestId '= """")) {")
+	Do %code.WriteLine("		Set tCachedRequest = ##class("_REQCLASSNAME_").%OpenId(tCachedRequestId, 0, .tStatus)")
+	Do %code.WriteLine("		If $$$ISOK(tStatus) && (..Equals(tCachedRequest)) && $isobject(tCachedRequest.Response) {")
+	Do %code.WriteLine("			Set pResponse = tCachedRequest.Response")
+	Do %code.WriteLine("			$$$LOGINFO(""Same request detected in last ""_pCacheValidityInSecs_"" secs : send a response (""_pResponse.%Id()_"" ""_tCachedRequestDate_"") without calling TC WS"")")
+	Do %code.WriteLine("			Quit $$$OK")
+	Do %code.WriteLine("		}")
+	Do %code.WriteLine("	}")
+	Do %code.WriteLine(" }")
+	Do %code.WriteLine(" Quit $$$ERROR($$$GeneralError,""Not found"")")
+	
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="SetCachedResponse">
+<CodeMode>objectgenerator</CodeMode>
+<FormalSpec>pResponse:Vendor.TrakCare.Production.Message.Appointments.AbstractResponse</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	Set tResponseProperty = ""
+	For i=1:1:%class.Properties.Count() {
+		If (%class.Properties.GetAt(i).Name = "Response") {
+			Set tResponseProperty = %class.Properties.GetAt(i)
+			Quit
+		}
+	}
+	If (tResponseProperty="") {
+		Do %code.WriteLine(" Quit $$$ERROR($$$NotImplemented)")
+		Quit $$$OK
+	}
+	Do %code.WriteLine(" Set tRequestHash = ..GetRequestHash()")
+	Do %code.WriteLine(" If (tRequestHash = -1) Quit $$$ERROR($$$NotImplemented)")
+	Do %code.WriteLine(" Set ..RequestHash = tRequestHash")
+	Do %code.WriteLine(" Set ..RequestDate = ##Class(Ens.DataType.UTC).timeUTC()")
+	Do %code.WriteLine(" Set ..Response = pResponse")
+	Do %code.WriteLine(" Quit ..%Save()")
+	Quit $$$OK
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.AbstractResponse">
+<Abstract>1</Abstract>
+<Super>%XML.Adaptor,Ens.Util.MessageBodyMethods</Super>
+<TimeChanged>65688,51934.552456</TimeChanged>
+<TimeCreated>65619,31552.619471</TimeCreated>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.Appointment">
+<Super>%Persistent,%XML.Adaptor</Super>
+<TimeChanged>65720,65188.984247</TimeChanged>
+<TimeCreated>65616,45630.946088</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptApp</Default>
+</Parameter>
+
+<Property name="Parent">
+<Type>AppointmentListResponse</Type>
+<Cardinality>one</Cardinality>
+<Inverse>Appointments</Inverse>
+<Relationship>1</Relationship>
+<OnDelete>cascade</OnDelete>
+</Property>
+
+<Property name="AppointmentID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="Date">
+<Type>%Date</Type>
+</Property>
+
+<Property name="Time">
+<Type>%Time</Type>
+</Property>
+
+<Property name="LocationID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="LocationDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="HospitalDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="ServiceID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="ServiceDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="ResourceID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="ResourceDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="StatusDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="StatusCode">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="UniqueBookingRefNum">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="UniqueSlotRefNum">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="Method">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="ReasonForCancel">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="EpisodeID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="EpisodeNumber">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="UserMayCancel">
+<Type>%Boolean</Type>
+</Property>
+
+<Property name="TimeZoneName">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="RoomDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Index name="ParentIndex">
+<Properties>Parent</Properties>
+</Index>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptAppD</DataLocation>
+<DefaultData>AppointmentDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptAppD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptAppI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptAppS</StreamLocation>
+<Data name="AppointmentDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>Parent</Value>
+</Value>
+<Value name="3">
+<Value>AppointmentID</Value>
+</Value>
+<Value name="4">
+<Value>Date</Value>
+</Value>
+<Value name="5">
+<Value>Time</Value>
+</Value>
+<Value name="6">
+<Value>LocationID</Value>
+</Value>
+<Value name="7">
+<Value>LocationDescription</Value>
+</Value>
+<Value name="8">
+<Value>HospitalDescription</Value>
+</Value>
+<Value name="9">
+<Value>ServiceID</Value>
+</Value>
+<Value name="10">
+<Value>ServiceDescription</Value>
+</Value>
+<Value name="11">
+<Value>ResourceID</Value>
+</Value>
+<Value name="12">
+<Value>ResourceDescription</Value>
+</Value>
+<Value name="13">
+<Value>StatusDescription</Value>
+</Value>
+<Value name="14">
+<Value>StatusCode</Value>
+</Value>
+<Value name="15">
+<Value>UniqueBookingRefNum</Value>
+</Value>
+<Value name="16">
+<Value>UniqueSlotRefNum</Value>
+</Value>
+<Value name="17">
+<Value>Method</Value>
+</Value>
+<Value name="18">
+<Value>ReasonForCancel</Value>
+</Value>
+<Value name="19">
+<Value>EpisodeID</Value>
+</Value>
+<Value name="20">
+<Value>EpisodeNumber</Value>
+</Value>
+<Value name="21">
+<Value>UserMayCancel</Value>
+</Value>
+<Value name="22">
+<Value>TimeZoneName</Value>
+</Value>
+<Value name="23">
+<Value>RoomDescription</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.AppointmentListRequest">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractRequest</Super>
+<TimeChanged>65716,76425.383517</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptAppLReq</Default>
+</Parameter>
+
+<Property name="MaxCount">
+<Type>%Integer</Type>
+</Property>
+
+<Property name="MRN">
+<Type>%Integer</Type>
+</Property>
+
+<Property name="PatientID">
+<Type>%String</Type>
+</Property>
+
+<Property name="Status">
+<Type>%String</Type>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptAppLReqD</DataLocation>
+<DefaultData>AppointmentListRequestDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptAppLReqD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptAppLReqI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptAppLReqS</StreamLocation>
+<Data name="AppointmentListRequestDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>MaxCount</Value>
+</Value>
+<Value name="3">
+<Value>MRN</Value>
+</Value>
+<Value name="4">
+<Value>CacheValidityInSecs</Value>
+</Value>
+<Value name="5">
+<Value>Status</Value>
+</Value>
+<Value name="6">
+<Value>PatientID</Value>
+</Value>
+<Value name="7">
+<Value>RequestDate</Value>
+</Value>
+<Value name="8">
+<Value>RequestHash</Value>
+</Value>
+<Value name="9">
+<Value>TrakCareAssigningAuthority</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.AppointmentListResponse">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractResponse</Super>
+<TimeChanged>65688,55603.833356</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptAppLRes</Default>
+</Parameter>
+
+<Property name="Appointments">
+<Description>
+Zero or more matches from the search</Description>
+<Type>Appointment</Type>
+<Cardinality>many</Cardinality>
+<Inverse>Parent</Inverse>
+<Relationship>1</Relationship>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptAppLResD</DataLocation>
+<DefaultData>AppointmentListResponseDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptAppLResD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptAppLResI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptAppLResS</StreamLocation>
+<Data name="AppointmentListResponseDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.Location">
+<Super>%Persistent,%XML.Adaptor</Super>
+<TimeChanged>65692,82352.454343</TimeChanged>
+<TimeCreated>65616,45630.946088</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptLoc</Default>
+</Parameter>
+
+<Property name="Parent">
+<Description>
+Parent</Description>
+<Type>LocationListResponse</Type>
+<Cardinality>one</Cardinality>
+<Inverse>Locations</Inverse>
+<Relationship>1</Relationship>
+<OnDelete>cascade</OnDelete>
+</Property>
+
+<Property name="LocationID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="LocationDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="LocationCode">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="HospitalID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="HospitalDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="HospitalCode">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="City">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="Address">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="Zip">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="Email">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="Phone">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="Province">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="State">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="TimeZoneName">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Index name="ParentIndex">
+<Properties>Parent</Properties>
+</Index>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptLocD</DataLocation>
+<DefaultData>LocationDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptLocD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptLocI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptLocS</StreamLocation>
+<Data name="LocationDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>Parent</Value>
+</Value>
+<Value name="3">
+<Value>LocationID</Value>
+</Value>
+<Value name="4">
+<Value>LocationDescription</Value>
+</Value>
+<Value name="5">
+<Value>LocationCode</Value>
+</Value>
+<Value name="6">
+<Value>HospitalID</Value>
+</Value>
+<Value name="7">
+<Value>HospitalDescription</Value>
+</Value>
+<Value name="8">
+<Value>HospitalCode</Value>
+</Value>
+<Value name="9">
+<Value>City</Value>
+</Value>
+<Value name="10">
+<Value>Address</Value>
+</Value>
+<Value name="11">
+<Value>Zip</Value>
+</Value>
+<Value name="12">
+<Value>Email</Value>
+</Value>
+<Value name="13">
+<Value>Phone</Value>
+</Value>
+<Value name="14">
+<Value>Province</Value>
+</Value>
+<Value name="15">
+<Value>State</Value>
+</Value>
+<Value name="16">
+<Value>TimeZoneName</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.LocationListRequest">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractRequest</Super>
+<TimeChanged>65716,76510.283915</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptLocLReq</Default>
+</Parameter>
+
+<Property name="MaxCount">
+<Type>%Integer</Type>
+</Property>
+
+<Property name="LocationID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="LocationDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="HospitalID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="HospitalDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="Response">
+<Type>LocationListResponse</Type>
+</Property>
+
+<Index name="HashDateIndex">
+<Properties>RequestHash,RequestDate</Properties>
+</Index>
+
+<Method name="GetRequestParamsString">
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[	Quit ..MaxCount_"||"_..LocationID_"||"_..LocationDescription_"||"_..HospitalID_"||"_..HospitalDescription
+]]></Implementation>
+</Method>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptLocLReqD</DataLocation>
+<DefaultData>LocationListRequestDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptLocLReqD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptLocLReqI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptLocLReqS</StreamLocation>
+<Data name="LocationListRequestDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>RequestHash</Value>
+</Value>
+<Value name="3">
+<Value>MaxCount</Value>
+</Value>
+<Value name="4">
+<Value>CacheValidityInSecs</Value>
+</Value>
+<Value name="5">
+<Value>HospitalID</Value>
+</Value>
+<Value name="6">
+<Value>HospitalDescription</Value>
+</Value>
+<Value name="7">
+<Value>Response</Value>
+</Value>
+<Value name="8">
+<Value>LocationID</Value>
+</Value>
+<Value name="9">
+<Value>RequestDate</Value>
+</Value>
+<Value name="10">
+<Value>LocationDescription</Value>
+</Value>
+<Value name="11">
+<Value>TrakCareAssigningAuthority</Value>
+</Value>
+<Value name="12">
+<Value>MRN</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.LocationListResponse">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractResponse</Super>
+<TimeChanged>65688,55649.846732</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptLocLRes</Default>
+</Parameter>
+
+<Property name="Locations">
+<Description>
+Zero or more matches from the search</Description>
+<Type>Location</Type>
+<Cardinality>many</Cardinality>
+<Inverse>Parent</Inverse>
+<Relationship>1</Relationship>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptLocLResD</DataLocation>
+<DefaultData>LocationListResponseDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptLocLResD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptLocLResI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptLocLResS</StreamLocation>
+<Data name="LocationListResponseDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.PatientInfoRequest">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractRequest</Super>
+<TimeChanged>65716,76585.046096</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.PatInfoReq</Default>
+</Parameter>
+
+<Property name="MRN">
+<Type>%Integer</Type>
+</Property>
+
+<Property name="Response">
+<Type>PatientInfoResponse</Type>
+</Property>
+
+<Index name="HashDateIndex">
+<Properties>RequestHash,RequestDate</Properties>
+</Index>
+
+<Method name="GetRequestParamsString">
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[	Quit ..MRN
+]]></Implementation>
+</Method>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.PatInfoReqD</DataLocation>
+<DefaultData>PatientInfoRequestDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.PatInfoReqD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.PatInfoReqI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.PatInfoReqS</StreamLocation>
+<Data name="PatientInfoRequestDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>RequestHash</Value>
+</Value>
+<Value name="3">
+<Value>MRN</Value>
+</Value>
+<Value name="4">
+<Value>CacheValidityInSecs</Value>
+</Value>
+<Value name="5">
+<Value>RequestDate</Value>
+</Value>
+<Value name="6">
+<Value>Response</Value>
+</Value>
+<Value name="7">
+<Value>TrakCareAssigningAuthority</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.PatientInfoResponse">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractResponse</Super>
+<TimeChanged>65689,59654.56698</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.PatInfoRes</Default>
+</Parameter>
+
+<Property name="PatientID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="RegistrationNumber">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="Sex">
+<Type>%String</Type>
+</Property>
+
+<Property name="DateOfBirth">
+<Type>%Date</Type>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.PatInfoResD</DataLocation>
+<DefaultData>PatientInfoResponseDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.PatInfoResD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.PatInfoResI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.PatInfoResS</StreamLocation>
+<Data name="PatientInfoResponseDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>PatientID</Value>
+</Value>
+<Value name="3">
+<Value>RegistrationNumber</Value>
+</Value>
+<Value name="4">
+<Value>Sex</Value>
+</Value>
+<Value name="5">
+<Value>DateOfBirth</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.Resource">
+<Description>
+Data class holding TC resource (care provider or equipment)</Description>
+<Super>%Persistent,%XML.Adaptor</Super>
+<TimeChanged>65689,59432.262286</TimeChanged>
+<TimeCreated>65616,45630.946088</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptRes</Default>
+</Parameter>
+
+<Property name="Parent">
+<Description>
+Parent</Description>
+<Type>ResourceListResponse</Type>
+<Cardinality>one</Cardinality>
+<Inverse>Resources</Inverse>
+<Relationship>1</Relationship>
+<OnDelete>cascade</OnDelete>
+</Property>
+
+<Property name="ResourceID">
+<Description>
+TC resource ID</Description>
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="ResourceDescription">
+<Description>
+TC resource desc</Description>
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="ResourceCode">
+<Description>
+TC resource code</Description>
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="LocationID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="LocationDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="LocationCode">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="HospitalID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="HospitalDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="HospitalCode">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Index name="ParentIndex">
+<Properties>Parent</Properties>
+</Index>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptResD</DataLocation>
+<DefaultData>ResourceDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptResD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptResI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptResS</StreamLocation>
+<Data name="ResourceDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>Parent</Value>
+</Value>
+<Value name="3">
+<Value>ResourceID</Value>
+</Value>
+<Value name="4">
+<Value>ResourceDescription</Value>
+</Value>
+<Value name="5">
+<Value>ResourceCode</Value>
+</Value>
+<Value name="6">
+<Value>LocationID</Value>
+</Value>
+<Value name="7">
+<Value>LocationDescription</Value>
+</Value>
+<Value name="8">
+<Value>LocationCode</Value>
+</Value>
+<Value name="9">
+<Value>HospitalID</Value>
+</Value>
+<Value name="10">
+<Value>HospitalDescription</Value>
+</Value>
+<Value name="11">
+<Value>HospitalCode</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.ResourceListRequest">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractRequest</Super>
+<TimeChanged>65716,76681.102734</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptResLReq</Default>
+</Parameter>
+
+<Property name="MaxCount">
+<Type>%Integer</Type>
+</Property>
+
+<Property name="OrderItemID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="ServiceID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="LocationID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="SpecialtyID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="Response">
+<Type>Vendor.TrakCare.Production.Message.Appointments.ResourceListResponse</Type>
+</Property>
+
+<Index name="HashDateIndex">
+<Properties>RequestHash,RequestDate</Properties>
+</Index>
+
+<Method name="GetRequestParamsString">
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[	Quit ..MaxCount_"||"_..OrderItemID_"||"_..ServiceID_"||"_..LocationID_"||"_..SpecialtyID
+]]></Implementation>
+</Method>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptResLReqD</DataLocation>
+<DefaultData>ResourceListRequestDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptResLReqD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptResLReqI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptResLReqS</StreamLocation>
+<Data name="ResourceListRequestDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>RequestHash</Value>
+</Value>
+<Value name="3">
+<Value>MaxCount</Value>
+</Value>
+<Value name="4">
+<Value>OrderItemID</Value>
+</Value>
+<Value name="5">
+<Value>ServiceID</Value>
+</Value>
+<Value name="6">
+<Value>LocationID</Value>
+</Value>
+<Value name="7">
+<Value>SpecialtyID</Value>
+</Value>
+<Value name="8">
+<Value>Response</Value>
+</Value>
+<Value name="9">
+<Value>CacheValidityInSecs</Value>
+</Value>
+<Value name="10">
+<Value>RequestDate</Value>
+</Value>
+<Value name="11">
+<Value>MRN</Value>
+</Value>
+<Value name="12">
+<Value>TrakCareAssigningAuthority</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.ResourceListResponse">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractResponse</Super>
+<TimeChanged>65688,55685.923932</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptResLRes</Default>
+</Parameter>
+
+<Property name="Resources">
+<Description>
+Zero or more matches from the search</Description>
+<Type>Resource</Type>
+<Cardinality>many</Cardinality>
+<Inverse>Parent</Inverse>
+<Relationship>1</Relationship>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptResLResD</DataLocation>
+<DefaultData>ResourceListResponseDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptResLResD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptResLResI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptResLResS</StreamLocation>
+<Data name="ResourceListResponseDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.Service">
+<Super>%Persistent,%XML.Adaptor</Super>
+<TimeChanged>65829,41353.259448</TimeChanged>
+<TimeCreated>65616,45630.946088</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptSrv</Default>
+</Parameter>
+
+<Property name="Parent">
+<Description>
+Parent</Description>
+<Type>ServiceListResponse</Type>
+<Cardinality>one</Cardinality>
+<Inverse>Services</Inverse>
+<Relationship>1</Relationship>
+<OnDelete>cascade</OnDelete>
+</Property>
+
+<Property name="SpecialtyID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="SpecialtyDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="SpecialtyCode">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="ServiceID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="ServiceDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="ServiceCode">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="OrderItemID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<UDLText name="T">
+<Content><![CDATA[
+// PC
+
+]]></Content>
+</UDLText>
+
+<Property name="ServiceDateFrom">
+<Type>%Date</Type>
+</Property>
+
+<Property name="ServiceDateTo">
+<Type>%Date</Type>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptSrvD</DataLocation>
+<DefaultData>ServiceDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptSrvD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptSrvI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptSrvS</StreamLocation>
+<Data name="ServiceDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>Parent</Value>
+</Value>
+<Value name="3">
+<Value>SpecialtyID</Value>
+</Value>
+<Value name="4">
+<Value>SpecialtyDescription</Value>
+</Value>
+<Value name="5">
+<Value>SpecialtyCode</Value>
+</Value>
+<Value name="6">
+<Value>ServiceID</Value>
+</Value>
+<Value name="7">
+<Value>ServiceDescription</Value>
+</Value>
+<Value name="8">
+<Value>ServiceCode</Value>
+</Value>
+<Value name="9">
+<Value>OrderItemID</Value>
+</Value>
+<Value name="10">
+<Value>ServiceSubGroupID</Value>
+</Value>
+<Value name="11">
+<Value>ServiceSubGroupDesc</Value>
+</Value>
+<Value name="12">
+<Value>ServiceDateFrom</Value>
+</Value>
+<Value name="13">
+<Value>ServiceDateTo</Value>
+</Value>
+<Value name="14">
+<Value>ServiceSubGroupCode</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.ServiceListRequest">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractRequest</Super>
+<TimeChanged>65716,76762.699764</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptSrvLReq</Default>
+</Parameter>
+
+<Property name="MaxCount">
+<Type>%Integer</Type>
+</Property>
+
+<Property name="SpecialtyID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="SpecialtyDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="ResourceID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="OrderItemID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="PatientID">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="Response">
+<Type>Vendor.TrakCare.Production.Message.Appointments.ServiceListResponse</Type>
+</Property>
+
+<Index name="HashDateIndex">
+<Properties>RequestHash,RequestDate</Properties>
+</Index>
+
+<Method name="GetRequestParamsString">
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[	Quit ..MaxCount_"||"_..SpecialtyID_"||"_..SpecialtyDescription_"||"_..ResourceID_"||"_..OrderItemID_"||"_..PatientID
+]]></Implementation>
+</Method>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptSrvLReqD</DataLocation>
+<DefaultData>ServiceListRequestDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptSrvLReqD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptSrvLReqI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptSrvLReqS</StreamLocation>
+<Data name="ServiceListRequestDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>RequestHash</Value>
+</Value>
+<Value name="3">
+<Value>MaxCount</Value>
+</Value>
+<Value name="4">
+<Value>CacheValidityInSecs</Value>
+</Value>
+<Value name="5">
+<Value>SpecialtyDescription</Value>
+</Value>
+<Value name="6">
+<Value>ResourceID</Value>
+</Value>
+<Value name="7">
+<Value>OrderItemID</Value>
+</Value>
+<Value name="8">
+<Value>PatientID</Value>
+</Value>
+<Value name="9">
+<Value>Response</Value>
+</Value>
+<Value name="10">
+<Value>RequestDate</Value>
+</Value>
+<Value name="11">
+<Value>SpecialtyID</Value>
+</Value>
+<Value name="12">
+<Value>MRN</Value>
+</Value>
+<Value name="13">
+<Value>TrakCareAssigningAuthority</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.ServiceListResponse">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractResponse</Super>
+<TimeChanged>65688,55716.636201</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptSrvLRes</Default>
+</Parameter>
+
+<Property name="Services">
+<Description>
+Zero or more matches from the search</Description>
+<Type>Service</Type>
+<Cardinality>many</Cardinality>
+<Inverse>Parent</Inverse>
+<Relationship>1</Relationship>
+</Property>
+
+<Property name="ConfigBookingMinDate">
+<Description>
+Indicate min configured date for booking</Description>
+<Type>%Date</Type>
+</Property>
+
+<Property name="ConfigBookingMaxDate">
+<Description>
+Indicate max configured date for booking (can be empty)</Description>
+<Type>%Date</Type>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptSrvLResD</DataLocation>
+<DefaultData>ServiceListResponseDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptSrvLResD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptSrvLResI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptSrvLResS</StreamLocation>
+<Data name="ServiceListResponseDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>ConfigBookingMinDate</Value>
+</Value>
+<Value name="3">
+<Value>ConfigBookingMaxDate</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.Slot">
+<Description>
+Data class holding TC appointment slot</Description>
+<Super>%Persistent,%XML.Adaptor</Super>
+<TimeChanged>65689,59899.73456</TimeChanged>
+<TimeCreated>65616,45630.946088</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptSlot</Default>
+</Parameter>
+
+<Property name="Parent">
+<Description>
+Parent</Description>
+<Type>SlotListResponse</Type>
+<Cardinality>one</Cardinality>
+<Inverse>Slots</Inverse>
+<Relationship>1</Relationship>
+<OnDelete>cascade</OnDelete>
+</Property>
+
+<Property name="UniqueSlotRefNum">
+<Type>%String</Type>
+<Parameter name="MAXLEN" value="256"/>
+</Property>
+
+<Property name="ServiceID">
+<Type>%String</Type>
+</Property>
+
+<Property name="OrderItemID">
+<Type>%String</Type>
+</Property>
+
+<Property name="ResourceID">
+<Type>%String</Type>
+</Property>
+
+<Property name="LocationID">
+<Type>%String</Type>
+</Property>
+
+<Property name="Date">
+<Type>%Date</Type>
+</Property>
+
+<Property name="StartTime">
+<Type>%Time</Type>
+</Property>
+
+<Property name="EndTime">
+<Type>%Time</Type>
+</Property>
+
+<Property name="ResourceDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="LocationDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="HospitalDescription">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="Price">
+<Type>%String</Type>
+</Property>
+
+<Property name="PercentUsedTime">
+<Type>%Integer</Type>
+</Property>
+
+<Index name="ParentIndex">
+<Properties>Parent</Properties>
+</Index>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptSlotD</DataLocation>
+<DefaultData>SlotDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptSlotD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptSlotI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptSlotS</StreamLocation>
+<Data name="SlotDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>Parent</Value>
+</Value>
+<Value name="3">
+<Value>UniqueSlotRefNum</Value>
+</Value>
+<Value name="4">
+<Value>ServiceID</Value>
+</Value>
+<Value name="5">
+<Value>OrderItemID</Value>
+</Value>
+<Value name="6">
+<Value>ResourceID</Value>
+</Value>
+<Value name="7">
+<Value>LocationID</Value>
+</Value>
+<Value name="8">
+<Value>Date</Value>
+</Value>
+<Value name="9">
+<Value>StartTime</Value>
+</Value>
+<Value name="10">
+<Value>EndTime</Value>
+</Value>
+<Value name="11">
+<Value>ResourceDescription</Value>
+</Value>
+<Value name="12">
+<Value>LocationDescription</Value>
+</Value>
+<Value name="13">
+<Value>HospitalDescription</Value>
+</Value>
+<Value name="14">
+<Value>Price</Value>
+</Value>
+<Value name="15">
+<Value>PercentUsedTime</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractRequest</Super>
+<TimeChanged>65832,52589.852148</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptSlotAReq</Default>
+</Parameter>
+
+<Parameter name="LOCK">
+<Default>Lock</Default>
+</Parameter>
+
+<Parameter name="UNLOCK">
+<Default>Unlock</Default>
+</Parameter>
+
+<Parameter name="CONFIRM">
+<Default>Confirm</Default>
+</Parameter>
+
+<Parameter name="CANCEL">
+<Default>Cancel</Default>
+</Parameter>
+
+<Property name="Action">
+<Type>%String</Type>
+<Parameter name="VALUELIST" value=",Lock,Unlock,Confirm,Cancel"/>
+</Property>
+
+<Property name="UniqueSlotRefNum">
+<Type>%String</Type>
+<Parameter name="MAXLEN" value="256"/>
+</Property>
+
+<Property name="ServiceID">
+<Type>%String</Type>
+</Property>
+
+<Property name="OrderItemID">
+<Type>%String</Type>
+</Property>
+
+<Property name="ResourceID">
+<Type>%String</Type>
+</Property>
+
+<Property name="LocationID">
+<Type>%String</Type>
+</Property>
+
+<Property name="AppointmentID">
+<Type>%String</Type>
+</Property>
+
+<Property name="WaitingListID">
+<Type>%String</Type>
+</Property>
+
+<Property name="MRN">
+<Type>%Integer</Type>
+</Property>
+
+<Property name="PatientID">
+<Type>%String</Type>
+</Property>
+
+<Property name="ActualUserID">
+<Type>%String</Type>
+</Property>
+
+<Property name="Remarks">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="UniqueBookingRefNum">
+<Type>%String</Type>
+<Parameter name="MAXLEN" value="256"/>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptSlotAReqD</DataLocation>
+<DefaultData>SlotActionRequestDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptSlotAReqD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptSlotAReqI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptSlotAReqS</StreamLocation>
+<Data name="SlotActionRequestDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>RequestHash</Value>
+</Value>
+<Value name="3">
+<Value>RequestDate</Value>
+</Value>
+<Value name="4">
+<Value>CacheValidityInSecs</Value>
+</Value>
+<Value name="5">
+<Value>Action</Value>
+</Value>
+<Value name="6">
+<Value>UniqueSlotRefNum</Value>
+</Value>
+<Value name="7">
+<Value>ServiceID</Value>
+</Value>
+<Value name="8">
+<Value>OrderItemID</Value>
+</Value>
+<Value name="9">
+<Value>ResourceID</Value>
+</Value>
+<Value name="10">
+<Value>LocationID</Value>
+</Value>
+<Value name="11">
+<Value>AppointmentID</Value>
+</Value>
+<Value name="12">
+<Value>MRN</Value>
+</Value>
+<Value name="13">
+<Value>PatientID</Value>
+</Value>
+<Value name="14">
+<Value>ActualUserID</Value>
+</Value>
+<Value name="15">
+<Value>Remarks</Value>
+</Value>
+<Value name="16">
+<Value>UniqueBookingRefNum</Value>
+</Value>
+<Value name="17">
+<Value>TrakCareAssigningAuthority</Value>
+</Value>
+<Value name="18">
+<Value>WaitingListID</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.SlotActionResponse">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractResponse</Super>
+<TimeChanged>65689,60478.201461</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptSlotARes</Default>
+</Parameter>
+
+<Property name="Result">
+<Type>%String</Type>
+</Property>
+
+<Property name="BookingNotes">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptSlotAResD</DataLocation>
+<DefaultData>SlotActionResponseDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptSlotAResD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptSlotAResI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptSlotAResS</StreamLocation>
+<Data name="SlotActionResponseDefaultData">
+<Structure>listnode</Structure>
+<Subscript/>
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>Result</Value>
+</Value>
+<Value name="3">
+<Value>BookingNotes</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.SlotListRequest">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractRequest</Super>
+<TimeChanged>65716,76931.415053</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptSlotLReq</Default>
+</Parameter>
+
+<Property name="MaxCount">
+<Type>%Integer</Type>
+</Property>
+
+<Property name="ServiceID">
+<Type>%String</Type>
+</Property>
+
+<Property name="OrderItemID">
+<Type>%String</Type>
+</Property>
+
+<Property name="ResourceID">
+<Type>%String</Type>
+</Property>
+
+<Property name="LocationID">
+<Type>%String</Type>
+</Property>
+
+<Property name="HospitalID">
+<Type>%String</Type>
+</Property>
+
+<Property name="StartDate">
+<Type>%Date</Type>
+</Property>
+
+<Property name="StartTime">
+<Type>%Time</Type>
+</Property>
+
+<Property name="EndDate">
+<Type>%Date</Type>
+</Property>
+
+<Property name="EndTime">
+<Type>%Time</Type>
+</Property>
+
+<Property name="DaysOfWeek">
+<Type>%String</Type>
+</Property>
+
+<Property name="Rows">
+<Type>%Integer</Type>
+</Property>
+
+<Property name="PatientID">
+<Type>%String</Type>
+</Property>
+
+<Property name="MRN">
+<Type>%Integer</Type>
+</Property>
+
+<Property name="PatientSex">
+<Type>%String</Type>
+</Property>
+
+<Property name="PatientAge">
+<Type>%String</Type>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptSlotLReqD</DataLocation>
+<DefaultData>SlotListRequestDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptSlotLReqD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptSlotLReqI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptSlotLReqS</StreamLocation>
+<Data name="SlotListRequestDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>RequestHash</Value>
+</Value>
+<Value name="3">
+<Value>MaxCount</Value>
+</Value>
+<Value name="4">
+<Value>CacheValidityInSecs</Value>
+</Value>
+<Value name="5">
+<Value>OrderItemID</Value>
+</Value>
+<Value name="6">
+<Value>ResourceID</Value>
+</Value>
+<Value name="7">
+<Value>LocationID</Value>
+</Value>
+<Value name="8">
+<Value>StartDate</Value>
+</Value>
+<Value name="9">
+<Value>StartTime</Value>
+</Value>
+<Value name="10">
+<Value>EndDate</Value>
+</Value>
+<Value name="11">
+<Value>EndTime</Value>
+</Value>
+<Value name="12">
+<Value>DaysOfWeek</Value>
+</Value>
+<Value name="13">
+<Value>Rows</Value>
+</Value>
+<Value name="14">
+<Value>PatientID</Value>
+</Value>
+<Value name="15">
+<Value>MRN</Value>
+</Value>
+<Value name="16">
+<Value>PatientSex</Value>
+</Value>
+<Value name="17">
+<Value>PatientAge</Value>
+</Value>
+<Value name="18">
+<Value>RequestDate</Value>
+</Value>
+<Value name="19">
+<Value>ServiceID</Value>
+</Value>
+<Value name="20">
+<Value>TrakCareAssigningAuthority</Value>
+</Value>
+<Value name="21">
+<Value>HospitalID</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.Appointments.SlotListResponse">
+<Super>%Persistent,Vendor.TrakCare.Production.Message.Appointments.AbstractResponse</Super>
+<TimeChanged>65688,56440.62459</TimeChanged>
+<TimeCreated>65616,35704.934595</TimeCreated>
+
+<Parameter name="DEFAULTGLOBAL">
+<Default>^Vendor.TC.ProdMsg.ApptSlotLRes</Default>
+</Parameter>
+
+<Property name="Slots">
+<Description>
+Zero or more matches from the search</Description>
+<Type>Slot</Type>
+<Cardinality>many</Cardinality>
+<Inverse>Parent</Inverse>
+<Relationship>1</Relationship>
+</Property>
+
+<Property name="ConfigBookingMinDate">
+<Description>
+Indicate min configured date for booking</Description>
+<Type>%Date</Type>
+</Property>
+
+<Property name="ConfigBookingMaxDate">
+<Description>
+Indicate max configured date for booking (can be empty)</Description>
+<Type>%Date</Type>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Vendor.TC.ProdMsg.ApptSlotLResD</DataLocation>
+<DefaultData>SlotListResponseDefaultData</DefaultData>
+<IdLocation>^Vendor.TC.ProdMsg.ApptSlotLResD</IdLocation>
+<IndexLocation>^Vendor.TC.ProdMsg.ApptSlotLResI</IndexLocation>
+<StreamLocation>^Vendor.TC.ProdMsg.ApptSlotLResS</StreamLocation>
+<Data name="SlotListResponseDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>ConfigBookingMinDate</Value>
+</Value>
+<Value name="3">
+<Value>ConfigBookingMaxDate</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Message.SDAUploadRequest">
+<Super>HSPortal.Production.Message.XDSbUploadRequest</Super>
+<TimeChanged>65560,63392.077141</TimeChanged>
+<TimeCreated>65560,63392.077141</TimeCreated>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Operation.Appointments.v1.AppointmentsOperation">
+<Super>Ens.BusinessOperation</Super>
+<TimeChanged>65778,65528.541372</TimeChanged>
+<TimeCreated>65616,34947.273422</TimeCreated>
+
+<Parameter name="DOMAIN">
+<Default>HSPortal</Default>
+</Parameter>
+
+<Parameter name="ADAPTER">
+<Default>EnsLib.SOAP.OutboundAdapter</Default>
+</Parameter>
+
+<Parameter name="APIPACKAGE">
+<Default>Vendor.TrakCare.WebServices.SYSAPI.v1</Default>
+</Parameter>
+
+<Parameter name="SETTINGS">
+<Default><![CDATA[TrakCareAssigningAuthority:Basic,SOAPServiceName:Basic:selector?Select=1&context={HS.Util.ContextSearch/ServiceNameItemsByParam?Type=SOAP},TrakCareUserCreds:Basic:credentialsSelector,TrakCareSpecialtyTable:CodeTables,TrakCareCodeTableTagID:CodeTables,TrakCareSessionFilter:CodeTables,TrakCareApptDefaults:CodeTables,TrakCareBookingNotes:CodeTables,BookingRangeMinDays:Calendar,BookingRangeMaxDays:Calendar]]></Default>
+</Parameter>
+
+<Parameter name="SessionFilterEBooking">
+<Default>EBooking</Default>
+</Parameter>
+
+<Parameter name="SessionFilterClinicalGrp">
+<Default>ClinicalGrp</Default>
+</Parameter>
+
+<Parameter name="SessionFilterEBookEntity">
+<Default>EBookEntity</Default>
+</Parameter>
+
+<Parameter name="SessionFilterSessionType">
+<Default>SessionType</Default>
+</Parameter>
+
+<Property name="TrakCareAssigningAuthority">
+<Type>%String</Type>
+<Required>1</Required>
+</Property>
+
+<Property name="SOAPServiceName">
+<Type>%String</Type>
+<Required>1</Required>
+</Property>
+
+<Property name="TrakCareUserCreds">
+<Description>
+TC User</Description>
+<Type>%String</Type>
+<Required>1</Required>
+</Property>
+
+<Property name="TrakCareCodeTableTagID">
+<Description>
+TC code table tag ID to filter specialities</Description>
+<Type>%String</Type>
+</Property>
+
+<Property name="TrakCareSpecialtyTable">
+<Description>
+Specialities table</Description>
+<Type>%String</Type>
+<InitialExpression>"CTLoc"</InitialExpression>
+<Required>1</Required>
+<Parameter name="VALUELIST" value=",RBCServiceGroup,CTLoc"/>
+</Property>
+
+<Property name="TrakCareFeatureCode">
+<Description>
+Region FeatureCODE</Description>
+<Type>%String</Type>
+<InitialExpression>"SCOVAX"</InitialExpression>
+</Property>
+
+<Property name="TrakCareSessionFilter">
+<Description>
+Booking session filtering</Description>
+<Type>%String</Type>
+<Parameter name="MAXLEN" value="256"/>
+</Property>
+
+<Property name="TrakCareApptDefaults">
+<Description>
+Appointments default properties</Description>
+<Type>%String</Type>
+<Parameter name="MAXLEN" value="1024"/>
+</Property>
+
+<Property name="TrakCareBookingNotes">
+<Description>
+Booking notes source</Description>
+<Type>%String</Type>
+<InitialExpression>"ARCIMRBNotes"</InitialExpression>
+<Parameter name="VALUELIST" value=",ARCIMRBNotes,ARCIMText1,ARCIMText2,ARCIMText3,ARCIMText4,ARCIMText5"/>
+</Property>
+
+<Property name="BookingRangeMinDays">
+<Description>
+Range min day from now</Description>
+<Type>%Integer</Type>
+<InitialExpression>1</InitialExpression>
+<Required>1</Required>
+<Parameter name="MINVAL" value="1"/>
+</Property>
+
+<Property name="BookingRangeMaxDays">
+<Description>
+Range max day from now</Description>
+<Type>%Integer</Type>
+<InitialExpression>365</InitialExpression>
+<Required>1</Required>
+<Parameter name="MINVAL" value="1"/>
+</Property>
+
+<Property name="UseInternalBooking">
+<Description>
+Use TC internal APIs for booking</Description>
+<Type>%Boolean</Type>
+<InitialExpression>0</InitialExpression>
+</Property>
+
+<Property name="SessionFilterMap">
+<Type>%String</Type>
+<MultiDimensional>1</MultiDimensional>
+<Transient>1</Transient>
+</Property>
+
+<Property name="ApptDefaultsMap">
+<Type>%String</Type>
+<MultiDimensional>1</MultiDimensional>
+<Transient>1</Transient>
+</Property>
+
+<Property name="UserCredentials">
+<Type>Ens.Config.Credentials</Type>
+<Transient>1</Transient>
+</Property>
+
+<Method name="OnInit">
+<Description>
+This user callback method is called via initConfig() from %OnNew() or in the case of SOAP Services from OnPreSOAP()</Description>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = ..InitializeSessionFilterMap()
+	
+	If $$$ISERR(tStatus) {
+		Quit tStatus
+	}
+	Quit ##super()
+]]></Implementation>
+</Method>
+
+<Method name="InitializeSessionFilterMap">
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Set tMapList = $listfromstring(..TrakCareSessionFilter,";")
+		Set tPos = 0
+		While $listnext(tMapList,tPos,tFilter) {
+			Set tFilter = $zstrip(tFilter,"<>W")
+			If (tFilter '= "") {
+				Set tKey = $piece(tFilter,"=")
+				Set tValue = $piece(tFilter,"=",2)
+				Set ..SessionFilterMap(tKey) = tValue
+			}
+		}
+		Set tMapList = $listfromstring(..TrakCareApptDefaults,";")
+		Set tPos = 0
+		While $listnext(tMapList,tPos,tFilter) {
+			Set tFilter = $zstrip(tFilter,"<>W")
+			If (tFilter '= "") {
+				Set tKey = $piece(tFilter,"=")
+				Set tValue = $piece(tFilter,"=",2)
+				Set ..ApptDefaultsMap(tKey) = tValue
+			}
+		}
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="OnPatientInfoRequest">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.PatientInfoRequest,*pResponse:Vendor.TrakCare.Production.Message.Appointments.PatientInfoResponse</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Do ..BeforeRequest()
+		
+		Set pResponse = ##class(Vendor.TrakCare.Production.Message.Appointments.PatientInfoResponse).%New()
+		Set tRegistrationNumber = ""
+		Set tStatus = ##class(HSPortal.Account.Identifier).GetExternalMRN(.tRegistrationNumber,pRequest.MRN,..TrakCareAssigningAuthority)
+		$$$ThrowOnError(tStatus)
+		If (tRegistrationNumber = "") {
+			Set tStatus = $$$ERROR($$$GeneralError,"Could not find TC MRN for MRN "_pRequest.MRN)
+			Quit
+		}
+		
+		#Dim tPersonListItem As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.ws.PAPerson.List.DataSet
+		Set tPersonListParams = ..NewAPIParams("PAPerson.List",".Params")
+		Set tPersonListParams.MAXCOUNT = 1
+		Set tPersonListParams.RegistrationNo = tRegistrationNumber
+		Set tStatus = ..InvokeAPI("PAPerson.List","ExecuteQuery",.tPersonList,tPersonListParams)
+		$$$ThrowOnError(tStatus)
+		If (tPersonList.Count() '= 1) {
+			Set tStatus = $$$ERROR($$$GeneralError,"Could not find Patient ID for "_tRegistrationNumber)
+			Quit
+		}
+		Set tPersonListItem = tPersonList.GetAt(1)
+		// collect patient id
+		Set pResponse.PatientID = tPersonListItem.ID
+		Set pResponse.RegistrationNumber = tRegistrationNumber
+		Set pResponse.Sex = tPersonListItem.Sex
+		Set pResponse.DateOfBirth = tPersonListItem.Dob
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="OnServiceListRequest">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.ServiceListRequest,*pResponse:Vendor.TrakCare.Production.Message.Appointments.ServiceListResponse</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	
+	Try {	
+					
+		Do ..BeforeRequest()
+		
+		Set pResponse = ##class(Vendor.TrakCare.Production.Message.Appointments.ServiceListResponse).%New()
+		
+		// Output config booking dates
+		Set pResponse.ConfigBookingMinDate = (+$Horolog) + ..BookingRangeMinDays
+		Set pResponse.ConfigBookingMaxDate = $Select(..BookingRangeMaxDays'="":(+$Horolog) + ..BookingRangeMaxDays,1:"")		
+		Set tSpecialtyAsLocation = ..TrakCareSpecialtyTable
+
+
+
+		/*
+		s zh=$zh
+		s ^zTRAK("PC",zh,"servlist","min max")=pResponse.ConfigBookingMinDate_":"_pResponse.ConfigBookingMaxDate
+		// Purpose of this method is to return all services configured for PC appointments
+		// in v1, we rely on existing TC APIs, probably to be more flexible/generic a new API should be developped.
+		
+		// PC
+		Set tTrakCareFeatureCode = ..TrakCareFeatureCode
+			
+		If (tTrakCareFeatureCode'="") {    	
+			Set tLocationListParams = ..NewAPIParams("CTLoc.FindList",".Params")
+			Set tLocationListParams.Active = 1
+			Set tLocationListParams.LocationTypeID = "E"
+			Set tStatus = ..InvokeAPI("CTLoc.FindList","ExecuteQuery",.tLocationList,tLocationListParams)
+			$$$ThrowOnError(tStatus)
+			For tLocationIndex=1:1:tLocationList.Count() {
+
+				#Dim tLocationListCustomItem As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.ws.CTLoc.FindList.DataSet
+				Set tLocationListCustomItem = tLocationList.GetAt(tLocationIndex)
+		
+				If (..TrakCareCodeTableTagID '= "") && ('$ListFind($ListFromString(tLocationListCustomItem.CTLOCCodeTableTags),..TrakCareCodeTableTagID)) {
+					Continue
+				}
+				
+				Set tServicesResourceListParams = ..NewAPIParams("RBCServicesResourceCustom.FindList",".Params")
+				Set tServicesResourceListParams.loc = tLocationListCustomItem.CTLOCRowId
+				Set tServicesResourceListParams.CustomFeature = tTrakCareFeatureCode
+				Set tServicesResourceListParams.PatientID = pRequest.PatientID
+				Set tStatus = ..InvokeAPI("RBCServicesResourceCustom.FindList","ExecuteQuery",.tServicesResourceList,tServicesResourceListParams)				
+				$$$ThrowOnError(tStatus)
+				For tServicesResourceIndex=1:1:tServicesResourceList.Count() {
+					Set tServicesResourceListItem = tServicesResourceList.GetAt(tServicesResourceIndex)
+					If (tServicesResourceListItem.OrderCode = "") { // filter Order Set
+						Continue
+					}
+					Set tService = ##class(Vendor.TrakCare.Production.Message.Appointments.Service).%New()
+					Set tService.ServiceID = tServicesResourceListItem.RowID
+					Set tService.ServiceCode = tServicesResourceListItem.OrderCode
+					Set tService.ServiceDescription = tServicesResourceListItem.Order
+					Set tService.SpecialtyID = tLocationListCustomItem.CTLOCRowId
+					Set tService.SpecialtyCode = tLocationListCustomItem.CTLOCCode
+					Set tService.SpecialtyDescription = tLocationListCustomItem.CTLOCDesc
+					Do pResponse.Services.Insert(tService)
+					
+					// PC
+					if (tServicesResourceListItem.SERDateFrom'="") {
+						Set (pResponse.ConfigBookingMinDate) = tServicesResourceListItem.SERDateFrom   
+						//Set ..BookingRangeMinDays =tServicesResourceListItem.SERDateFrom-$H
+					}
+					if (tServicesResourceListItem.SERDateTo'="" ) {
+						Set (pResponse.ConfigBookingMaxDate) = tServicesResourceListItem.SERDateTo	
+						//Set ..BookingRangeMaxDays = tServicesResourceListItem.SERDateTo-$H		
+					}
+				}					
+		
+			}
+		// query when we only have the arcitem to get a service id
+		} Else */
+		
+		If (pRequest.OrderItemID'="") {	
+			Set tServicesResourceListParams = ..NewAPIParams("RBCServicesResource.FindList",".Params")
+			Set tServicesResourceListParams.MAXCOUNT = 1
+			Set tServicesResourceListParams.arcim = pRequest.OrderItemID
+			Set tStatus = ..InvokeAPI("RBCServicesResource.FindList","ExecuteQuery",.tServicesResourceList,tServicesResourceListParams)
+			$$$ThrowOnError(tStatus)
+			For tServicesResourceIndex=1:1:tServicesResourceList.Count() {
+				#Dim tServicesResourceListItem As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.ws.RBCServicesResource.FindList.DataSet
+				Set tServicesResourceListItem = tServicesResourceList.GetAt(tServicesResourceIndex)
+				Set tService = ##class(Vendor.TrakCare.Production.Message.Appointments.Service).%New()
+				Set tService.OrderItemID = pRequest.OrderItemID
+				Set tService.ServiceID = tServicesResourceListItem.RowID
+				Set tService.ServiceCode = tServicesResourceListItem.OrderCode
+				Set tService.ServiceDescription = tServicesResourceListItem.Order
+				Do pResponse.Services.Insert(tService)
+			}  
+		} ElseIf (tSpecialtyAsLocation="CTLoc") { // query services when 'specialty' is ctloc		
+			// load all ctlocs 'E' with tag
+			Set tLocationListParams = ..NewAPIParams("CTLoc.FindList",".Params")
+			Set tLocationListParams.Active = 1
+			Set tLocationListParams.LocationTypeID = "E"
+			Set tStatus = ..InvokeAPI("CTLoc.FindList","ExecuteQuery",.tLocationList,tLocationListParams)
+			$$$ThrowOnError(tStatus)
+			For tLocationIndex=1:1:tLocationList.Count() {
+				#Dim tLocationListItem As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.ws.CTLoc.FindList.DataSet
+				Set tLocationListItem = tLocationList.GetAt(tLocationIndex)
+				If (..TrakCareCodeTableTagID '= "") && ('$ListFind($ListFromString(tLocationListItem.CTLOCCodeTableTags),..TrakCareCodeTableTagID)) {
+					Continue
+				}
+								
+				Set tServicesResourceListParams = ..NewAPIParams("RBCServicesResource.FindList",".Params")
+				Set tServicesResourceListParams.arcim = pRequest.OrderItemID
+				Set tServicesResourceListParams.loc = tLocationListItem.CTLOCRowId
+				Set tStatus = ..InvokeAPI("RBCServicesResource.FindList","ExecuteQuery",.tServicesResourceList,tServicesResourceListParams)
+				$$$ThrowOnError(tStatus)
+				For tServicesResourceIndex=1:1:tServicesResourceList.Count() {
+					Set tServicesResourceListItem = tServicesResourceList.GetAt(tServicesResourceIndex)
+					If (tServicesResourceListItem.OrderCode = "") { // filter Order Set
+						Continue
+					}
+					Set tService = ##class(Vendor.TrakCare.Production.Message.Appointments.Service).%New()
+					Set tService.ServiceID = tServicesResourceListItem.RowID
+					Set tService.ServiceCode = tServicesResourceListItem.OrderCode
+					Set tService.ServiceDescription = tServicesResourceListItem.Order
+					Set tService.SpecialtyID = tLocationListItem.CTLOCRowId
+					Set tService.SpecialtyCode = tLocationListItem.CTLOCCode
+					Set tService.SpecialtyDescription = tLocationListItem.CTLOCDesc
+					
+					Do pResponse.Services.Insert(tService)
+				}
+			}
+
+		} Else {
+			// query services when 'specialty' is rbcservicegroup
+			
+			// load all service group, filter by tag
+			Set tServiceGroupListParams = ..NewAPIParams("RBCServiceGroup.FindList",".Params")
+			Set tServiceGroupListParams.Active = 1
+			
+			Set tStatus = ..InvokeAPI("RBCServiceGroup.FindList","ExecuteQuery",.tServiceGroupList,tServiceGroupListParams)
+			$$$ThrowOnError(tStatus)			
+			
+			For tServiceGroupIndex=1:1:tServiceGroupList.Count() {
+				#Dim tServiceGroupListItem As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.ws.RBCServiceGroup.FindList.DataSet
+				Set tServiceGroupListItem = tServiceGroupList.GetAt(tServiceGroupIndex)
+				If (..TrakCareCodeTableTagID '= "") && ('$ListFind($ListFromString(tServiceGroupListItem.SGCodeTableTags),..TrakCareCodeTableTagID)) {
+					Continue
+				}
+												
+				Set tArcItmListParams = ..NewAPIParams("ARCItmMast.FindList",".Params")
+				Set tArcItmListParams.MAXCOUNT = 100
+				Set tArcItmListParams.ServiceGroup = tServiceGroupListItem.SGCode
+				Set tArcItmListParams.Active = 1
+		
+				Set tStatus = ..InvokeAPI("ARCItmMast.FindList","ExecuteQuery",.tArcItmList,tArcItmListParams)
+				$$$ThrowOnError(tStatus)			
+				
+				For tArcItmIndex=1:1:tArcItmList.Count() {
+					#Dim tArcItmListItem As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.ws.ARCItmMast.FindList.DataSet
+					Set tArcItmListItem = tArcItmList.GetAt(tArcItmIndex)
+				
+					Set tService=##class(Vendor.TrakCare.Production.Message.Appointments.Service).%New()
+					Set tService.SpecialtyID = tServiceGroupListItem.SGRowId
+					Set tService.SpecialtyCode = tServiceGroupListItem.SGCode
+					Set tService.SpecialtyDescription = tServiceGroupListItem.SGDesc
+					Set tService.OrderItemID = tArcItmListItem.ID
+					Set tService.ServiceCode = tArcItmListItem.ARCIMCode
+					Set tService.ServiceDescription = tArcItmListItem.ARCIMDesc
+				
+					Do pResponse.Services.Insert(tService)
+				}
+			}
+		}
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="OnResourceListRequest">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.ResourceListRequest,*pResponse:Vendor.TrakCare.Production.Message.Appointments.ResourceListResponse</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+
+		Set pResponse = ##class(Vendor.TrakCare.Production.Message.Appointments.ResourceListResponse).%New()
+				
+		Set tSpecialtyAsLocation = ..TrakCareSpecialtyTable="CTLoc"
+		
+		// Here we use TC apptlist api, with special 'AllRes' mode in "LinkFlag".
+		// For perf, could be replaced by new API
+		If (pRequest.ServiceID'="") {
+				
+			Set tApptListParams = ..NewAPIParams("RBAppointment.ApptList",".Params")
+			Set tApptListParams.ServId = pRequest.ServiceID
+			Set tApptListParams.LocId = pRequest.LocationID
+			
+			If (tSpecialtyAsLocation && (pRequest.SpecialtyID'="")) {
+				Set tApptListParams.LocId = pRequest.SpecialtyID
+			}
+			
+			// perf, limit the search
+			Set tApptListParams.EndDate = (+$Horolog) + $Select(..BookingRangeMaxDays'="":..BookingRangeMaxDays,1:90)
+			Set tApptListParams.LinkFlag = "^Y^"
+			
+			// apply filtering, exclude sessions not available for online booking
+			Set tApptListParams.SessDesc = $Get(..SessionFilterMap(..#SessionFilterSessionType))
+			If ($Extract(tApptListParams.SessDesc,*)'="|") {
+				Set tApptListParams.SessDesc=tApptListParams.SessDesc_"|"
+			}
+			Set tApptListParams.TransInt = ..ApptListParamsBuildTransInt($Get(..SessionFilterMap(..#SessionFilterEBooking)),
+					$Get(..SessionFilterMap(..#SessionFilterClinicalGrp)),$Get(..SessionFilterMap(..#SessionFilterEBookEntity)))
+			Set tApptListParams.Rows = 1
+			// 'book' indicator (vs overbook)
+			Set tApptListParams.MultiSelect = 1
+						
+			Set tStatus = ..InvokeAPI("RBAppointment.ApptList","ExecuteQuery",.tApptList,tApptListParams)
+			$$$ThrowOnError(tStatus)
+			
+			Set tApptListPrevItem = ""
+			For tApptIndex=1:1:tApptList.Count() {
+				#Dim tApptListItem As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.ws.RBAppointment.ApptList.DataSet
+				Set tApptListItem = tApptList.GetAt(tApptIndex)
+				If (tApptListPrevItem '= "") { // TC discards consecutive identical value, take from previous row
+					If (tApptListItem.Location = "") {
+						Set tApptListItem.Location = tApptListPrevItem.Location
+					}
+					If (tApptListItem.lhospital = "") {
+						Set tApptListItem.lhospital = tApptListPrevItem.lhospital
+					}
+					If (tApptListItem.shospital = "") {
+						Set tApptListItem.shospital = tApptListPrevItem.shospital
+					}
+				}
+				Set tApptListPrevItem = tApptListItem
+				Set tResource = ##class(Vendor.TrakCare.Production.Message.Appointments.Resource).%New()
+				Set tResource.ResourceID = tApptListItem.ResId
+				Set tResource.ResourceCode = tApptListItem.ResCode
+				Set tResource.ResourceDescription = tApptListItem.Resource
+				Set tResource.LocationID = tApptListItem.LocId
+				Set tResource.LocationDescription = tApptListItem.Location
+				Set tResource.HospitalDescription = $Select(tApptListItem.lhospital'="":tApptListItem.lhospital,1:tApptListItem.shospital)
+				Do pResponse.Resources.Insert(tResource)
+			}
+		}
+		Else {
+			Set tStatus = $$$ERROR($$$GeneralError,"Invalid parameter")
+		}
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="ApptListParamsBuildTransInt">
+<Description>
+Build some of the magic transint values</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>EBooking="",ClinicalGrp="",EBookEntity="",Age="",Sex=""</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	Set tTransint = ""
+	Set $piece(tTransint,"^",8) = Age
+	Set $piece(tTransint,"^",9) = Sex
+	Set $Piece(tTransint,"^",10) = ClinicalGrp
+	Set $Piece(tTransint,"^",12) = EBookEntity
+	Set $Piece(tTransint,"^",15) = EBooking
+	Quit tTransint
+]]></Implementation>
+</Method>
+
+<Method name="OnLocationListRequest">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.LocationListRequest,*pResponse:Vendor.TrakCare.Production.Message.Appointments.LocationListResponse</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Do ..BeforeRequest()
+		
+		Set pResponse = ##class(Vendor.TrakCare.Production.Message.Appointments.LocationListResponse).%New()
+		
+		If (pRequest.LocationDescription'="") {
+			#dim tLocationListParams As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.api.CTLoc.FindList.Params
+			Set tLocationListParams = ..NewAPIParams("CTLoc.FindList",".Params")
+			Set tLocationListParams.Active = 1
+			Set tLocationListParams.MAXCOUNT = pRequest.MaxCount
+			Set tLocationListParams.Description = pRequest.LocationDescription
+			Set tStatus = ..InvokeAPI("CTLoc.FindList","ExecuteQuery",.tLocationList,tLocationListParams)
+			$$$ThrowOnError(tStatus)
+			For tLocationIndex=1:1:tLocationList.Count() {
+				#Dim tLocationListItem As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.ws.CTLoc.FindList.DataSet
+				Set tLocationListItem = tLocationList.GetAt(tLocationIndex)
+				If tLocationListItem.CTLOCDesc = pRequest.LocationDescription {
+					Set tLocation = ##class(Vendor.TrakCare.Production.Message.Appointments.Location).%New()
+					Set tLocation.LocationCode = tLocationListItem.CTLOCCode
+					Set tLocation.LocationDescription = tLocationListItem.CTLOCDesc
+					Set tLocation.LocationID = tLocationListItem.CTLOCRowId
+					Set tLocation.HospitalDescription = tLocationListItem.HOSPDesc
+					
+					Do pResponse.Locations.Insert(tLocation)
+				}
+			}
+		}
+		ElseIf (pRequest.HospitalDescription'="") {
+		
+			Set tHospitalListParams = ..NewAPIParams("CTHospital.FindList",".Params")
+			Set tHospitalListParams.MAXCOUNT = pRequest.MaxCount
+			Set tHospitalListParams.Description = pRequest.HospitalDescription
+			Set tStatus = ..InvokeAPI("CTHospital.FindList","ExecuteQuery",.tHospitalList,tHospitalListParams)
+			$$$ThrowOnError(tStatus)
+			
+			For tHospitalIndex=1:1:tHospitalList.Count() {
+				#Dim tHospitalListItem As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.ws.CTHospital.FindList.DataSet
+				Set tHospitalListItem = tHospitalList.GetAt(tHospitalIndex)
+				If tHospitalListItem.HOSPDesc = pRequest.HospitalDescription {
+					Set tLocation = ##class(Vendor.TrakCare.Production.Message.Appointments.Location).%New()
+					Set tLocation.HospitalCode = tHospitalListItem.HOSPCode
+					Set tLocation.HospitalDescription = tHospitalListItem.HOSPDesc
+					Set tLocation.HospitalID = tHospitalListItem.HOSPRowId
+					Set tLocation.City = tHospitalListItem.HOSPCity
+					Set tLocation.Address = tHospitalListItem.HOSPAddress
+					Set tLocation.Zip = tHospitalListItem.HOSPZipDR
+					Set tLocation.Email = tHospitalListItem.HOSPEmail
+					Set tLocation.Phone = tHospitalListItem.HOSPPhone
+					Set tLocation.Province = tHospitalListItem.HOSPProvinceDR
+					Set tLocation.State = tHospitalListItem.HOSPState
+					
+					#Dim tHospitalEdit As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.api.CTHospital.Edit
+					Set tStatus = ..InvokeAPI("CTHospital.Edit","Open",.tHospitalEdit,tHospitalListItem.HOSPRowId)
+					$$$ThrowOnError(tStatus)
+					Set tLocation.TimeZoneName = tHospitalEdit.HOSPTimeZone
+					
+					Do pResponse.Locations.Insert(tLocation)
+				}
+			}
+		}
+		Else {
+			// Implement others if needed, currently only used to retrieved hospital details
+			
+			Set tStatus = $$$ERROR($$$GeneralError,"Invalid param")
+		}
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="OnSlotListRequest">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.SlotListRequest,*pResponse:Vendor.TrakCare.Production.Message.Appointments.SlotListResponse</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Do ..BeforeRequest()
+			
+		Set pResponse = ##class(Vendor.TrakCare.Production.Message.Appointments.SlotListResponse).%New()
+		
+		If (pRequest.ServiceID = "") {
+			Set tStatus=$$$ERROR($$$GeneralError,"Invalid parameter")
+			Quit
+		}
+		;s zh=$ZH
+		;s ^zTRAK("PC",zh,"slotlist","min max REQUEST")=pRequest.StartDate_":"_pRequest.EndDate
+		;s ^zTRAK("PC",zh,"slotlist","prod days")=..BookingRangeMinDays_":"_..BookingRangeMaxDays
+		;s ^zTRAK("PC",zh,"slotlist","prod days default")=..BookingRangeMinDaysDEFAULT_":"_..BookingRangeMaxDaysDEFAULT
+	
+		// Output config booking dates
+		;Set pResponse.ConfigBookingMinDate = (+$Horolog) + ..BookingRangeMinDays
+		;Set pResponse.ConfigBookingMaxDate = $Select(..BookingRangeMaxDays'="":(+$Horolog) + ..BookingRangeMaxDays,1:"")
+		;s ^zTRAK("PC",zh,"slotlist","min maxEND")=pResponse.ConfigBookingMinDate_":"_pResponse.ConfigBookingMaxDate
+		
+		Set tApptListParams = ..NewAPIParams("RBAppointment.ApptList",".Params")
+		Set tApptListParams.MAXCOUNT = $Select(pRequest.MaxCount'="":pRequest.MaxCount,1:500)
+		
+		Set tServiceId = pRequest.ServiceID
+		Set tResourceId = pRequest.ResourceID
+		
+		If (tResourceId'="") {
+			//use here list of res, used when care prov is selected.
+			//we can have multiple ids when care prov has schedules on several locs.
+			Set tResourceCount = $Length(tResourceId,"^")
+			Set tApptListParams.ResId = tResourceId_"^"
+			For tResourceIndex=1:1:tResourceCount {
+				Set tApptListParams.ServId = tApptListParams.ServId_tServiceId_"^"
+			}
+		}
+		Else {
+			//use here list of loc, either blank, multiple (when hospital selected)
+			Set tLocationCount = $Length(pRequest.LocationID,"^")
+			Set tApptListParams.LocId = pRequest.LocationID_"^"
+			For tLocationIndex=1:1:tLocationCount {
+				Set tApptListParams.ServId = tApptListParams.ServId_tServiceId_"^"
+			}
+		}
+		Set tApptListParams.HospIDs = pRequest.HospitalID
+		
+		// handle dates filters
+		Set tApptListParams.Date = pRequest.StartDate
+		Set tApptListParams.STime = pRequest.StartTime
+		Set tApptListParams.EndDate = pRequest.EndDate
+		Set tApptListParams.ETime = pRequest.EndTime
+		// apply configured date range
+		If ((tApptListParams.Date="") || (tApptListParams.Date<pResponse.ConfigBookingMinDate)) {
+			Set tApptListParams.Date = pResponse.ConfigBookingMinDate
+		}
+		If ((pResponse.ConfigBookingMaxDate'="") && ((tApptListParams.EndDate="") || (tApptListParams.EndDate>pResponse.ConfigBookingMaxDate))) {
+			Set tApptListParams.EndDate = pResponse.ConfigBookingMaxDate
+		}
+		
+		// applyt DaysOfWeek
+		Set tApptListParams.DOW = pRequest.DaysOfWeek
+		
+		// When we have end date (calendar mode)
+		Set tCalendarMode = (pRequest.EndDate'="")
+		Set tUseTime = $Select(tCalendarMode:"Y",1:"N")
+		Set tGroupDay = "N"
+		Set tApptListParams.HCA = "PP^N^N^"_tUseTime_"^"_tGroupDay
+		Set tApptListParams.Rows = pRequest.Rows // row per date or resource
+		
+		// apply filtering, exclude sessions not available for online booking
+		Set tApptListParams.SessDesc = $Get(..SessionFilterMap(..#SessionFilterSessionType))
+		If ($Extract(tApptListParams.SessDesc,*)'="|") {
+			Set tApptListParams.SessDesc=tApptListParams.SessDesc_"|"
+		}
+		Set tApptListParams.TransInt = ..ApptListParamsBuildTransInt($Get(..SessionFilterMap(..#SessionFilterEBooking)),
+			$Get(..SessionFilterMap(..#SessionFilterClinicalGrp)),$Get(..SessionFilterMap(..#SessionFilterEBookEntity)),
+			pRequest.PatientAge,pRequest.PatientSex)
+
+		// 'book' indicator (vs overbook)
+		Set tApptListParams.MultiSelect = 1
+								
+		Set tStatus = ..InvokeAPI("RBAppointment.ApptList","ExecuteQuery",.tApptList,tApptListParams)
+		$$$ThrowOnError(tStatus)
+		
+		Set tApptListPrevItem = ""
+		For tApptIndex=1:1:tApptList.Count() {
+			#Dim tApptListItem As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.ws.RBAppointment.ApptList.DataSet
+			Set tApptListItem = tApptList.GetAt(tApptIndex)
+			
+			If (tApptListPrevItem '= "") { // TC discards consecutive identical value, take from previous row
+				If (tApptListItem.Date = "") { 
+					Set tApptListItem.Date = tApptListPrevItem.Date 
+				}
+				If (tApptListItem.Resource = "") { 
+					Set tApptListItem.Resource = tApptListPrevItem.Resource 
+				}
+				If (tApptListItem.Location = "") { 
+					Set tApptListItem.Location = tApptListPrevItem.Location 
+				}
+				If (tApptListItem.ResId = "") { 
+					Set tApptListItem.ResId = tApptListPrevItem.ResId 
+				}
+				If (tApptListItem.LocId = "") { 
+					Set tApptListItem.LocId = tApptListPrevItem.LocId 
+				}
+				If (tApptListItem.ServiceARCIMDR="") { 
+					Set tApptListItem.ServiceARCIMDR = tApptListPrevItem.ServiceARCIMDR 
+				}
+				If (tApptListItem.lhospital = "") { 
+					Set tApptListItem.lhospital = tApptListPrevItem.lhospital 
+				}
+				If (tApptListItem.shospital = "") { 
+					Set tApptListItem.shospital = tApptListPrevItem.shospital 
+				}
+			}
+			Set tApptListPrevItem = tApptListItem
+			Set tApptListItem.USRN = $piece(tApptListItem.USRN," ",2)
+			If (tApptListItem.USRN = "") {
+				Continue
+			}
+			
+			Set tSlot = ##class(Vendor.TrakCare.Production.Message.Appointments.Slot).%New()
+			Set tSlot.UniqueSlotRefNum = tApptListItem.USRN 
+			Set tSlot.Date = tApptListItem.Date
+			Set tSlot.StartTime = tApptListItem.SessStartTime
+			Set tSlot.EndTime = tApptListItem.SessEndTime
+			
+			Set tSlot.ResourceDescription = tApptListItem.Resource
+			Set tSlot.LocationDescription = tApptListItem.Location
+			Set tSlot.ServiceID = tApptListItem.SerId
+			Set tSlot.OrderItemID = tApptListItem.ServiceARCIMDR
+			Set tSlot.LocationID = tApptListItem.LocId
+			Set tSlot.ResourceID = tApptListItem.ResId
+			Set tSlot.HospitalDescription = $Select(tApptListItem.lhospital'="":tApptListItem.lhospital,1:tApptListItem.shospital)
+			Set tSlot.Price = tApptListItem.Price
+			Set tSlot.PercentUsedTime = tApptListItem.PercentUsedTime
+			
+			Do pResponse.Slots.Insert(tSlot)
+		}
+		Set tStatus = pResponse.%Save()
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="OnSlotActionRequest">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest,*pResponse:Vendor.TrakCare.Production.Message.Appointments.SlotActionResponse</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Do ..BeforeRequest()
+		
+		Set pResponse = ##class(Vendor.TrakCare.Production.Message.Appointments.SlotActionResponse).%New()
+		
+		If (pRequest.UniqueSlotRefNum = "") {
+			Set tStatus = $$$ERROR($$$GeneralError,"Invalid parameter UniqueSlotRefNum")
+			Quit
+		}
+		
+		If (pRequest.Action = ##class(Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest).#LOCK) || (pRequest.Action = ##class(Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest).#UNLOCK) {
+			Set tHoldApptParams = ..NewAPIParams("RBAppointment.HoldAppt.Edit")
+			Set tHoldApptParams.APPTUSRN = pRequest.UniqueSlotRefNum
+			Set tHoldApptParams.APPTUBRN = ..GetUniqueBookingRefNum(pRequest.UniqueSlotRefNum,pRequest.ActualUserID)
+			Set tHoldApptParams.Mode = $Select(pRequest.Action=##class(Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest).#UNLOCK:"U",1:"L")
+			
+			Set tStatus = ..InvokeAPI("RBAppointment.HoldAppt.Edit","Save",.tResult,tHoldApptParams)
+			$$$ThrowOnError(tStatus)
+			
+			Set pResponse.Result = tResult
+			
+			If (pRequest.Action = ##class(Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest).#LOCK) {
+				// send back booking notes from arcitem
+				If (pRequest.OrderItemID '= "") && (..TrakCareBookingNotes '= "") {
+					#Dim tArcItmEdit As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.api.ARCItmMast.Edit					
+					Set tStatus = ..InvokeAPI("ARCItmMast.Edit","Open",.tArcItmEdit,pRequest.OrderItemID)
+					$$$ThrowOnError(tStatus)
+			
+					Set pResponse.BookingNotes = $Property(tArcItmEdit,..TrakCareBookingNotes)
+				}
+			}
+		}
+		ElseIf (pRequest.Action = ##class(Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest).#CONFIRM) {
+			Do ..ConfirmAppt(pRequest, pResponse)
+		}
+		ElseIf (pRequest.Action=##class(Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest).#CANCEL) {
+			Do ..CancelAppt(pRequest, pResponse)
+		}
+		Else {
+			Set tStatus = $$$ERROR($$$GeneralError,"Invalid parameter")
+			Quit
+		}
+		Set tStatus = pResponse.%Save()
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="ConfirmAppt">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest,*pResponse:Vendor.TrakCare.Production.Message.Appointments.SlotActionResponse</FormalSpec>
+<Implementation><![CDATA[
+	If (pRequest.PatientID = "") {
+		$$$ThrowOnError($$$ERROR($$$GeneralError,"Invalid parameter PatientID"))
+	}
+	
+	If ..UseInternalBooking {
+		// unlock
+		Set tHoldApptParams = ..NewAPIParams("RBAppointment.HoldAppt.Edit")
+		Set tHoldApptParams.APPTUSRN = pRequest.UniqueSlotRefNum
+		Set tHoldApptParams.APPTUBRN = ..GetUniqueBookingRefNum(pRequest.UniqueSlotRefNum,pRequest.ActualUserID)
+		Set tHoldApptParams.Mode = "U"
+		Set tStatus = ..InvokeAPI("RBAppointment.HoldAppt.Edit","Save",.tResult,tHoldApptParams)
+		$$$ThrowOnError(tStatus)
+		
+		// save
+		#Dim tUpdateBookingParams as Vendor.TrakCare.WebServices.SYSAPI.v1.TC.api.RBAppointment.UpdateBooking
+		Set tUpdateBookingParams = ..NewAPIParams("RBAppointment.UpdateBooking")
+		Set tUpdateBookingParams.SchedID = $piece(pRequest.UniqueSlotRefNum,"-",1)
+		Set tUpdateBookingParams.ServID = $piece(pRequest.UniqueSlotRefNum,"-",4)
+		Set tUpdateBookingParams.RescID = pRequest.ResourceID
+		Set tUpdateBookingParams.LocID = pRequest.LocationID
+		Set tUpdateBookingParams.PatientID = pRequest.PatientID
+		Set tUpdateBookingParams.APPTRemarks = pRequest.Remarks
+		Set tStatus = ..InvokeAPI("RBAppointment.UpdateBooking","Save",.tResult,tUpdateBookingParams)
+		$$$ThrowOnError(tStatus)
+		Set pResponse.Result = tResult
+	}
+	Else {
+		Set tConfirmApptParams = ..NewAPIParams("RBAppointment.ConfirmAppt.Edit")
+		Set tConfirmApptParams.APPTUSRN = pRequest.UniqueSlotRefNum
+		Set tConfirmApptParams.APPTUBRN = ..GetUniqueBookingRefNum(pRequest.UniqueSlotRefNum,pRequest.ActualUserID)
+		Set tConfirmApptParams.PatientID = pRequest.PatientID
+				
+		Set tStatus = ..InvokeAPI("RBAppointment.ConfirmAppt.Edit","Save",.tResult,tConfirmApptParams)
+		$$$ThrowOnError(tStatus)
+		
+		Set pResponse.Result = tResult
+	}
+	Try {
+		// post-confirm operations, on error we just log As appointment has been booked already...
+			
+		// TC api does not return currently the app ID in soap mode..., this call could be removed when fixed
+		Set tAppointmentID = ..FindAppointmentIDByUniqueSlotRefNum(pRequest.PatientID,pRequest.UniqueSlotRefNum)
+		If (tAppointmentID = "") {
+			// should not happen...
+			$$$LOGWARNING("FindAppointmentIDByUniqueSlotRefNum: could not find appt for patient "_pRequest.PatientID_" USRN "_pRequest.UniqueSlotRefNum)
+			Quit
+		}
+						
+		#Dim tAppointmentEdit As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.api.RBAppointment.Edit
+		Set tStatus = ..InvokeAPI("RBAppointment.Edit","Open",.tAppointmentEdit,tAppointmentID)
+		$$$ThrowOnError(tStatus)
+			
+		// Set default property (like booking method...)
+		Set tKey = ""
+		For {
+			Set tKey = $Order(..ApptDefaultsMap(tKey))
+			If (tKey = "") {
+				Quit
+			}
+			Set tValue = $Get(..ApptDefaultsMap(tKey))
+			Try {
+				Set $property(tAppointmentEdit,tKey) = tValue
+			}
+			Catch tException1 {
+				// bad config, should not happen...
+				$$$LOGWARNING("RBAppointmentEdit: error setting appt default property "_tKey_" = "_tValue_" fix operation settings!")
+			}
+		}
+		// appointments remarks from patient
+		Set tAppointmentEdit.APPTRemarks = pRequest.Remarks
+						
+		Set tStatus = ..InvokeAPI("RBAppointment.Edit","Save",.tResult,tAppointmentEdit)
+		$$$ThrowOnError(tStatus)
+	} Catch tException2 {
+		$$$LOGWARNING("RBAppointmentEdit: error post-confirm")
+		$$$LOGSTATUS(tException2.AsStatus())
+	}
+]]></Implementation>
+</Method>
+
+<Method name="CancelAppt">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest,*pResponse:Vendor.TrakCare.Production.Message.Appointments.SlotActionResponse</FormalSpec>
+<Implementation><![CDATA[
+	If ..UseInternalBooking {
+		Set tChangeApptStatusParams = ..NewAPIParams("RBAppointment.ChangeStatus")
+		
+		Set tChangeApptStatusParams.ApptID = pRequest.AppointmentID
+		Set tChangeApptStatusParams.CancelReason = "AP"
+		Set tChangeApptStatusParams.Status = "X"	
+		Set tChangeApptStatusParams.DiscontOrd = "Y"
+		Set tChangeApptStatusParams.FreeCancelReason = pRequest.Remarks
+		Set tChangeApptStatusParams.TOVERRIDE = 1
+	
+		Set tStatus = ..InvokeAPI("RBAppointment.ChangeStatus","Save",.tResult,tChangeApptStatusParams)
+		$$$ThrowOnError(tStatus)
+		
+		If $Extract(tResult,1,2)="I^" {
+			Set tResult=1
+		}
+		Set pResponse.Result = tResult
+	}
+	Else {
+		Set tCancelApptParams = ..NewAPIParams("RBAppointment.CancelAppt.Edit")
+		Set tCancelApptParams.APPTUSRN = pRequest.UniqueSlotRefNum		
+		Set tCancelApptParams.APPTUBRN = pRequest.UniqueBookingRefNum
+		Set tCancelApptParams.APPTReasonForCancelCode = "AP"
+		Set tCancelApptParams.APPTReasonForCancelText = pRequest.Remarks
+		Set tStatus = ..InvokeAPI("RBAppointment.CancelAppt.Edit","Save",.tResult,tCancelApptParams)
+		$$$ThrowOnError(tStatus)
+		
+		Set pResponse.Result = tResult
+	}
+]]></Implementation>
+</Method>
+
+<Method name="FindAppointmentIDByUniqueSlotRefNum">
+<FormalSpec>pPatientID:%String,UniqueSlotRefNum:%String</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	Set tAppointmentListParams = ..NewAPIParams("RBAppointment.List",".Params")
+	Set tAppointmentListParams.MAXCOUNT = 100
+	Set tAppointmentListParams.PatientID = pPatientID
+	Set tStatus = ..InvokeAPI("RBAppointment.List","ExecuteQuery",.tAppointmentList,tAppointmentListParams)
+	$$$ThrowOnError(tStatus)
+	Set tAppointmentId = ""
+	For tAppointmentIndex=1:1:tAppointmentList.Count() {
+		#Dim tAppointmentListItem As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.ws.RBAppointment.List.DataSet
+		Set tAppointmentListItem = tAppointmentList.GetAt(tAppointmentIndex)
+		If (tAppointmentListItem.apptUSRN = UniqueSlotRefNum) {
+			Set tAppointmentId = tAppointmentListItem.apptId
+			Quit
+		}
+	}
+	Quit tAppointmentId
+]]></Implementation>
+</Method>
+
+<Method name="OnAppointmentListRequest">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.AppointmentListRequest,*pResponse:Vendor.TrakCare.Production.Message.Appointments.AppointmentListResponse</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Do ..BeforeRequest()
+		
+		Set pResponse = ##class(Vendor.TrakCare.Production.Message.Appointments.AppointmentListResponse).%New()
+		
+		Set tAppointmentListParams = ..NewAPIParams("RBAppointment.List",".Params")
+		Set tAppointmentListParams.MAXCOUNT = $Select(pRequest.MaxCount'="":pRequest.MaxCount,1:100)
+		Set tAppointmentListParams.PatientID = pRequest.PatientID
+		Set tAppointmentListParams.Status = pRequest.Status
+		Set tStatus = ..InvokeAPI("RBAppointment.List","ExecuteQuery",.tAppointmentList,tAppointmentListParams)
+		$$$ThrowOnError(tStatus)
+		
+		For tAppointmentIndex=1:1:tAppointmentList.Count() {
+			#Dim tAppointmentListItem As Vendor.TrakCare.WebServices.SYSAPI.v1.TC.ws.RBAppointment.List.DataSet
+			Set tAppointmentListItem = tAppointmentList.GetAt(tAppointmentIndex)
+			Set tAppointment = ##class(Vendor.TrakCare.Production.Message.Appointments.Appointment).%New()
+			Set tAppointment.AppointmentID = tAppointmentListItem.apptId
+			Set tAppointment.Date = tAppointmentListItem.apptDate
+			Set tAppointment.EpisodeID = tAppointmentListItem.apptAdmId
+			Set tAppointment.EpisodeNumber = tAppointmentListItem.paadmADMNo
+			Set tAppointment.HospitalDescription = tAppointmentListItem.Hospital
+			Set tAppointment.LocationDescription = tAppointmentListItem.apptLocDesc
+			Set tAppointment.LocationID = $piece(tAppointmentListItem.apptLocResSer,"^")
+			Set tAppointment.Method = tAppointmentListItem.method
+			Set tAppointment.ReasonForCancel = tAppointmentListItem.apptReasonForCancel
+			Set tAppointment.ResourceDescription = tAppointmentListItem.RescDesc
+			Set tAppointment.ResourceID = tAppointmentListItem.RescId
+			Set tAppointment.ServiceDescription = tAppointmentListItem.apptServDesc
+			Set tAppointment.ServiceID = $piece(tAppointmentListItem.apptLocResSer,"^",2)
+			Set tAppointment.UniqueBookingRefNum = $replace(tAppointmentListItem.apptUBRN," ","")
+			Set tAppointment.UniqueSlotRefNum = $replace(tAppointmentListItem.apptUSRN," ","")
+			Set tAppointment.StatusCode = tAppointmentListItem.apptStatusCode
+			Set tAppointment.StatusDescription = tAppointmentListItem.apptStatus
+			Set tAppointment.Time = tAppointmentListItem.apptSTime
+			Set tAppointment.UserMayCancel = (tAppointment.StatusCode="P")
+			Set tAppointment.TimeZoneName = tAppointmentListItem.TimeZoneCode
+			Set tAppointment.RoomDescription = tAppointmentListItem.Room
+			Do pResponse.Appointments.Insert(tAppointment)
+		}
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="GetUniqueBookingRefNum">
+<FormalSpec>UniqueSlotRefNum="",ActualUserID=""</FormalSpec>
+<Private>1</Private>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[	Quit "HSPC-"_ActualUserID_"-"_UniqueSlotRefNum
+]]></Implementation>
+</Method>
+
+<Method name="NewAPIParams">
+<FormalSpec>pComponentName:%String,pType:%String=""</FormalSpec>
+<ReturnType>%RegisteredObject</ReturnType>
+<Implementation><![CDATA[	Quit $classmethod(..#APIPACKAGE_".TC.api."_pComponentName_pType,"%New")
+]]></Implementation>
+</Method>
+
+<Method name="InvokeAPI">
+<FormalSpec><![CDATA[pComponentName:%String,pMethod:%String,&pResult,pParams]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Set tStatus = ..GetSOAPAdapter(.tAdapter,.tUserCreds)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+	
+		Set tClassName = $Translate(pComponentName,".","")
+
+		Set tStatus = tAdapter.InvokeMethod(tClassName_pMethod,.pResult,"",pParams,tUserCreds.Username,tUserCreds.Password)
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="BeforeRequest">
+<Implementation><![CDATA[	Set ..UserCredentials = ""
+]]></Implementation>
+</Method>
+
+<Method name="GetSOAPAdapter">
+<FormalSpec><![CDATA[&pAdapter,&pUserCreds]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		If ..UserCredentials = "" {
+			#dim tSOAPService as HS.Registry.Service.SOAP
+			Set tSOAPService = ##class(HSPortal.Production.Util.SOAP).GetSOAPService(..SOAPServiceName,1)
+		
+			Set ..Adapter.SOAPCredentials = tSOAPService.HTTPCredentialsConfig
+			Set ..Adapter.SSLConfig = tSOAPService.SSLConfig
+		
+			Set ..Adapter.WebServiceURL = tSOAPService.EndPoint
+			Set ..Adapter.WebServiceClientClass = ..#APIPACKAGE_".TChmfServiceTrakInboundSYSAPISoap"
+	
+			Set tStatus = ##class(Ens.Config.Credentials).GetCredentialsObj(.pUserCreds,$classname($this),"Ens.Config.Credentials",..TrakCareUserCreds)
+			If $$$ISERR(tStatus) {
+				Quit
+			}
+			Set ..UserCredentials = pUserCreds
+		}
+		Set pUserCreds = ..UserCredentials
+		Set pAdapter = ..Adapter
+		
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}		
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<XData name="MessageMap">
+<Data><![CDATA[
+<MapItems>
+	<MapItem MessageType="Vendor.TrakCare.Production.Message.Appointments.PatientInfoRequest">
+		<Method>OnPatientInfoRequest</Method>
+	</MapItem>
+	<MapItem MessageType="Vendor.TrakCare.Production.Message.Appointments.ServiceListRequest">
+		<Method>OnServiceListRequest</Method>
+	</MapItem>
+	<MapItem MessageType="Vendor.TrakCare.Production.Message.Appointments.ResourceListRequest">
+		<Method>OnResourceListRequest</Method>
+	</MapItem>
+	<MapItem MessageType="Vendor.TrakCare.Production.Message.Appointments.LocationListRequest">
+		<Method>OnLocationListRequest</Method>
+	</MapItem>
+	<MapItem MessageType="Vendor.TrakCare.Production.Message.Appointments.SlotListRequest">
+		<Method>OnSlotListRequest</Method>
+	</MapItem>
+	<MapItem MessageType="Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest">
+		<Method>OnSlotActionRequest</Method>
+	</MapItem>
+	<MapItem MessageType="Vendor.TrakCare.Production.Message.Appointments.AppointmentListRequest">
+		<Method>OnAppointmentListRequest</Method>
+	</MapItem>
+</MapItems>
+]]></Data>
+</XData>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Operation.SendSDA.v1.SendDocumentSDAOperation">
+<IncludeCode>HSPortal.Include,HSPortal.Errors</IncludeCode>
+<Super>Ens.BusinessOperation</Super>
+<TimeChanged>65630,73573.806231</TimeChanged>
+<TimeCreated>65560,63412.250983</TimeCreated>
+
+<Parameter name="SETTINGS">
+<Default><![CDATA[TrakCareAssigningAuthority:Basic,SOAPServiceName:Basic:selector?Select=1&context={HS.Util.ContextSearch/ServiceNameItemsByParam?Type=SOAP},TrakCareDocumentType:Basic]]></Default>
+</Parameter>
+
+<Property name="TrakCareAssigningAuthority">
+<Type>%String</Type>
+</Property>
+
+<Property name="TrakCareDocumentType">
+<Description>
+TrakCare document type code (PAC_DocumentType)</Description>
+<Type>%String</Type>
+</Property>
+
+<Property name="SOAPServiceName">
+<Type>%String</Type>
+</Property>
+
+<Parameter name="DOMAIN">
+<Default>HSPortal</Default>
+</Parameter>
+
+<Parameter name="WEBCLIENT">
+<Default>HSPortal.Vendor.TrakCare.SendSDA.v1.WebServiceClient</Default>
+</Parameter>
+
+<Method name="OnMessage">
+<FormalSpec>pRequestMessage:Vendor.TrakCare.Production.Message.SDAUploadRequest,*pResponse:%Library.Persistent</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		//Generate SDA from TrakCare.Production.Message.SDAUploadRequest
+		Set tMRNObj = ##class(HSPortal.Account.MRN).%OpenId(pRequestMessage.MRN,,.tStatus)
+		$$$ThrowOnError(tStatus)
+		Set tUser = ##class(HSPortal.Account.UserData).%OpenId(pRequestMessage.UserID,,.tStatus)
+		$$$ThrowOnError(tStatus)
+		
+		Set tSDA = ##class(HS.SDA3.Container).%New()
+		Set tSDA.Patient.Name.GivenName = tUser.FirstName
+		Set tSDA.Patient.Name.FamilyName = tUser.LastName
+		Set tSDA.Patient.Name.MiddleName = tUser.MiddleName
+		#dim tDOB As HS.SDA3.TimeStamp
+		Set tDOB = tUser.DateOfBirth
+		Set tSDA.Patient.BirthTime = tDOB
+		Set tSDA.Patient.Gender.Code = tUser.Sex
+		
+		Set tStatus = ##class(HSPortal.Account.Identifier).GetExternalMRN(.tTrakMRN,pRequestMessage.MRN,..TrakCareAssigningAuthority)
+		$$$ThrowOnError(tStatus)
+		Set tPatientNumber = ##class(HS.SDA3.PatientNumber).%New()
+		Set tPatientNumber.Organization.Code = ..TrakCareAssigningAuthority
+		Set tPatientNumber.NumberType = "MRN"
+		Set tPatientNumber.Number = tTrakMRN
+		Set tStatus = tSDA.Patient.PatientNumbers.Insert(tPatientNumber)
+		$$$ThrowOnError(tStatus)
+		
+		Set tDoc = ##class(HS.SDA3.Document).%New()
+		//Get document contents
+		Set tUploadDocument = ##class(HSPortal.Session.UploadDocument).%OpenId(pRequestMessage.UploadDocumentID,,.tStatus)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		Set tDoc.FileType = $piece(tUploadDocument.Filename,".",*)
+		Set tDoc.Stream = tUploadDocument.Content
+		
+		Set tDocTime = $ZDATETIME($H,3,1)
+		Set tDoc.DocumentName = pRequestMessage.Title
+		Set tDoc.DocumentType = ##class(HS.SDA3.CodeTableDetail.DocumentType).%New()
+		Set tDoc.DocumentType.Code = $s(..TrakCareDocumentType'="":..TrakCareDocumentType,1:"Patient Uploaded Document")
+		Set tDoc.DocumentType.Description = "Patient Uploaded Document"
+
+		Set tDoc.EnteredOn = tDocTime
+		Set tDoc.EnteredBy.Description = "Patient" 
+        Set tDoc.DocumentTime = tDocTime
+		
+		Set tStatus = tSDA.Documents.Insert(tDoc)
+		$$$ThrowOnError(tStatus)
+		
+		Set tSOAPService = ##class(HSPortal.Production.Util.SOAP).GetSOAPService(..SOAPServiceName,1)
+		Set tStatus = ##class(Ens.Config.Credentials).GetCredentialsObj(.tCredentials,$classname($this),"Ens.Config.Credentials",tSOAPService.HTTPCredentialsConfig)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		
+		Set tStatus = ##class(HSPortal.Production.Util.SOAP).CreateClient(.tClient,..#WEBCLIENT,tCredentials,tSOAPService)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		
+		Set tStatus = tClient.SendSDA(tSDA)
+		$$$ThrowOnError(tStatus)
+		
+		Set tStatus = ##class(Vendor.TrakCare.Document.PatientDocument).Create(.tPatientDocument,pRequestMessage.UploadDocumentID,pRequestMessage.MRN,pRequestMessage.UserID, pRequestMessage.Title,pRequestMessage.CategoryName,pRequestMessage.CategoryID)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		Do ##class(HSPortal.Utils).%LogActivity("public",$$$HSPCDocumentActionUpload,pRequestMessage.SessionID,tPatientDocument.UploadUserID,pRequestMessage.MRN,"","", tPatientDocument.%Id(), tPatientDocument.Category,tPatientDocument.Title)
+	
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Set pRequestMessage.Status = $select($$$ISOK(tStatus):$$$HSPCDocumentSubmitted,1:$$$HSPCDocumentError)
+	Set tSaveStatus = pRequestMessage.%Save()
+
+	Quit tStatus
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Operation.SendSDA.v1.SendSDAOperation">
+<IncludeCode>HSPortal.Include,HSPortal.Errors</IncludeCode>
+<Super>Ens.BusinessOperation</Super>
+<TimeChanged>65560,63421.678551</TimeChanged>
+<TimeCreated>65560,63421.678551</TimeCreated>
+
+<Parameter name="SETTINGS">
+<Default><![CDATA[TrakCareAssigningAuthority:Basic,SOAPServiceName:Basic:selector?Select=1&context={HS.Util.ContextSearch/ServiceNameItemsByParam?Type=SOAP}]]></Default>
+</Parameter>
+
+<Property name="TrakCareAssigningAuthority">
+<Type>%String</Type>
+</Property>
+
+<Property name="SOAPServiceName">
+<Type>%String</Type>
+</Property>
+
+<Parameter name="DOMAIN">
+<Default>HSPortal</Default>
+</Parameter>
+
+<Parameter name="WEBCLIENT">
+<Default>Vendor.TrakCare.WebServices.SendSDA.v1.WebServiceClient</Default>
+</Parameter>
+
+<Method name="CreateAndSendUploadDocumentSDA">
+<FormalSpec>pRequestMessage:Vendor.TrakCare.Production.Message.SDAUploadRequest,*pResponse:%Library.Persistent</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Set tStatus = ..CreatePatientSDA(pRequestMessage.MRN,.tSDA)
+		$$$ThrowOnError(tStatus)
+		
+		Set tDoc = ##class(HS.SDA3.Document).%New()
+		//Get document contents
+		Set tUploadDocument = ##class(HSPortal.Session.UploadDocument).%OpenId(pRequestMessage.UploadDocumentID,,.tStatus)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		Set tDoc.FileType = $piece(tUploadDocument.Filename,".",*)
+		Set tDoc.Stream = tUploadDocument.Content
+		
+		Set tDocTime = $ZDATETIME($H,3,1)
+		Set tDoc.DocumentName = pRequestMessage.Title
+		Set tDoc.DocumentType = ##class(HS.SDA3.CodeTableDetail.DocumentType).%New()
+		Set tDoc.DocumentType.Code = "Patient Uploaded Document"
+		Set tDoc.DocumentType.Description = "Patient Uploaded Document"
+
+		Set tDoc.EnteredOn = tDocTime
+		Set tDoc.EnteredBy.Description = "Patient" 
+        Set tDoc.DocumentTime = tDocTime
+		
+		Set tStatus = tSDA.Documents.Insert(tDoc)
+		$$$ThrowOnError(tStatus)
+		
+		Set tStatus= ..SendSDA(tSDA)
+		$$$ThrowOnError(tStatus)
+		
+		Set tStatus = ##class(Vendor.TrakCare.Document.PatientDocument).Create(.tPatientDocument,pRequestMessage.UploadDocumentID,pRequestMessage.MRN,pRequestMessage.UserID, pRequestMessage.Title,pRequestMessage.CategoryName,pRequestMessage.CategoryID)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		Do ##class(HSPortal.Utils).%LogActivity("public",$$$HSPCDocumentActionUpload,pRequestMessage.SessionID,tPatientDocument.UploadUserID,pRequestMessage.MRN,"","", tPatientDocument.%Id(), tPatientDocument.Category,tPatientDocument.Title)
+	
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Set pRequestMessage.Status = $select($$$ISOK(tStatus):$$$HSPCDocumentSubmitted,1:$$$HSPCDocumentError)
+	Set tStatus = pRequestMessage.%Save()
+
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="CreateAndSendFormSDA">
+<FormalSpec>pFormPDF:HSPortal.Production.Message.FormPDFResponse,*pResponse:%Library.Persistent</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Set tStatus = ..CreatePatientSDA(pFormPDF.SubjectMRN, .tSDA)
+		$$$ThrowOnError(tStatus)
+		
+		Set tDoc = ##class(HS.SDA3.Document).%New()
+		Set tDoc.FileType = "PDF"
+		Set tDoc.Stream = pFormPDF.PDFData
+		
+		Set tDocTime = $ZDATETIME($H,3,1)
+		Do ##class(HSPortal.Forms.Utils).GetBasicFormDetails(pFormPDF.FormApplication,pFormPDF.FormKey,pFormPDF.FormRevision,0,.tFormName)
+		Set tDoc.DocumentName = "Form Response for " _ tFormName _ ", version " _ pFormPDF.FormRevision
+		Set tDoc.DocumentType = ##class(HS.SDA3.CodeTableDetail.DocumentType).%New()
+		Set tDoc.DocumentType.Code = "Form Response"
+		Set tDoc.DocumentType.Description = "Form Response"
+		Set tDoc.EnteredOn = tDocTime
+		Set tDoc.EnteredBy.Description = "Patient" 
+        Set tDoc.DocumentTime = tDocTime
+		
+		Set tStatus = tSDA.Documents.Insert(tDoc)
+		$$$ThrowOnError(tStatus)
+		
+		Set tStatus = ..SendSDA(tSDA)
+		$$$ThrowOnError(tStatus)
+		
+		
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="CreatePatientSDA">
+<FormalSpec>pSubjectMRN:%String,*pSDA</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Set tMRNObj = ##class(HSPortal.Account.MRN).%OpenId(pSubjectMRN,,.tStatus)
+		$$$ThrowOnError(tStatus)
+		Set tUser = ##class(HSPortal.Account.UserData).%OpenId(tMRNObj.UserID,,.tStatus)
+		$$$ThrowOnError(tStatus)
+		
+		Set pSDA = ##class(HS.SDA3.Container).%New()
+		Set pSDA.Patient.Name.GivenName = tUser.FirstName
+		Set pSDA.Patient.Name.FamilyName = tUser.LastName
+		Set pSDA.Patient.Name.MiddleName = tUser.MiddleName
+		#dim tDOB As HS.SDA3.TimeStamp
+		Set tDOB = tUser.DateOfBirth
+		Set pSDA.Patient.BirthTime = tDOB
+		Set pSDA.Patient.Gender.Code = tUser.Sex
+		
+		Set tStatus = ##class(HSPortal.Account.Identifier).GetExternalMRN(.tTrakMRN,pSubjectMRN,..TrakCareAssigningAuthority)
+		$$$ThrowOnError(tStatus)
+		Set tPatientNumber = ##class(HS.SDA3.PatientNumber).%New()
+		Set tPatientNumber.Organization.Code = ..TrakCareAssigningAuthority
+		Set tPatientNumber.NumberType = "MRN"
+		Set tPatientNumber.Number = tTrakMRN
+		Set tStatus = pSDA.Patient.PatientNumbers.Insert(tPatientNumber)
+		$$$ThrowOnError(tStatus)
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="SendSDA">
+<FormalSpec>pSDA:HS.SDA3.Container</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {	
+		Set tSOAPService = ##class(HSPortal.Production.Util.SOAP).GetSOAPService(..SOAPServiceName,1)
+		Set tStatus = ##class(Ens.Config.Credentials).GetCredentialsObj(.tCredentials,$classname($this),"Ens.Config.Credentials",tSOAPService.HTTPCredentialsConfig)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		
+		Set tStatus = ##class(HSPortal.Production.Util.SOAP).CreateClient(.tClient,..#WEBCLIENT,tCredentials,tSOAPService)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		
+		Set tStatus = tClient.SendSDA(pSDA)
+		$$$ThrowOnError(tStatus)
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<XData name="MessageMap">
+<Data><![CDATA[
+<MapItems>
+  <MapItem MessageType="Vendor.TrakCare.Production.Message.SDAUploadRequest">
+    <Method>CreateAndSendUploadDocumentSDA</Method>
+  </MapItem>
+  <MapItem MessageType="HSPortal.Production.Message.FormPDFResponse">
+    <Method>CreateAndSendFormSDA</Method>
+  </MapItem>
+</MapItems>
+]]></Data>
+</XData>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Process.AppointmentsProcess">
+<Description>
+Process TrakCare appointments
+
+Mostly passthrough process, adding some request caching facility to limit calls to TC
+</Description>
+<Super>Ens.BusinessProcess</Super>
+<TimeChanged>65779,42132.897453</TimeChanged>
+<TimeCreated>65619,33405.450264</TimeCreated>
+
+<Property name="SubmissionTarget">
+<Type>Ens.DataType.ConfigName</Type>
+</Property>
+
+<Property name="AssigningAuthorityOperationMap">
+<Type>%String</Type>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="AAOperationMap">
+<Type>%String</Type>
+<MultiDimensional>1</MultiDimensional>
+<Transient>1</Transient>
+</Property>
+
+<Property name="CacheValidityInSecs">
+<Description>
+Code table caching validity in seconds</Description>
+<Type>%Integer</Type>
+<InitialExpression>300</InitialExpression>
+</Property>
+
+<Property name="RequestAssigningAuthority">
+<Type>%String</Type>
+<Transient>1</Transient>
+</Property>
+
+<Property name="RequestSubmissionTarget">
+<Type>%String</Type>
+<Transient>1</Transient>
+</Property>
+
+<Parameter name="SETTINGS">
+<Default>SubmissionTarget:Basic,CacheValidityInSecs:Basic,AssigningAuthorityOperationMap:Basic</Default>
+</Parameter>
+
+<Method name="OnInit">
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = ..InitializeAAOperationMap()
+	If $$$ISERR(tStatus) {
+		Quit tStatus
+	}
+	Quit ##super()
+]]></Implementation>
+</Method>
+
+<Method name="InitializeAAOperationMap">
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Set tMapList = $listfromstring(..AssigningAuthorityOperationMap,";")
+		Set tPos = 0
+		While $listnext(tMapList,tPos,tFilter) {
+			Set tFilter = $zstrip(tFilter,"<>W")
+			If (tFilter '= "") {
+				Set tKey = $piece(tFilter,"=")
+				Set tValue = $piece(tFilter,"=",2)
+				Set ..AAOperationMap(tKey) = tValue
+			}
+		}
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="OnRequest">
+<FormalSpec>pRequest:%Library.Persistent,*pResponse:%Library.Persistent</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Try {
+		Set tStatus = ..UpdateAuthorityAndSubmissionTarget(pRequest)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		Set tReqClassName = pRequest.%ClassName(1)		
+	
+		If (tReqClassName = "Vendor.TrakCare.Production.Message.Appointments.SlotListRequest") {
+			Set tStatus = ..OnSlotListRequest(pRequest,.pResponse)
+		}
+		ElseIf (tReqClassName = "Vendor.TrakCare.Production.Message.Appointments.ResourceListRequest") {
+			Set tStatus = ..OnResourceListRequest(pRequest,.pResponse)
+		}
+		ElseIf (tReqClassName = "Vendor.TrakCare.Production.Message.Appointments.ServiceListRequest") {
+			Set tStatus = ..SendRequestToOperationWithCaching(pRequest,.pResponse)
+		}
+		ElseIf (tReqClassName = "Vendor.TrakCare.Production.Message.Appointments.LocationListRequest") {
+			Set tStatus = ..SendRequestToOperationWithCaching(pRequest,.pResponse)
+		}
+		ElseIf (tReqClassName = "Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest") {
+			Set tStatus = ..OnSlotActionRequest(pRequest,.pResponse)
+		}
+		ElseIf (tReqClassName = "Vendor.TrakCare.Production.Message.Appointments.AppointmentListRequest") {
+			Set tStatus = ..OnAppointmentListRequest(pRequest,.pResponse)
+		}
+		Else {
+			Set tStatus = ..SendRequestToOperation(pRequest,.pResponse)
+		}
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="UpdateAuthorityAndSubmissionTarget">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.AbstractRequest</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		// If submission target, we are in single TC mode
+		If (..SubmissionTarget '= "") {
+			Set ..RequestSubmissionTarget = ..SubmissionTarget
+			Set ..RequestAssigningAuthority = ""
+			Quit
+		}
+		Set ..RequestSubmissionTarget = ""
+		Set ..RequestAssigningAuthority = ""
+		
+		Set tTarget = ""
+		Set tAA = ""
+		If pRequest.TrakCareAssigningAuthority'="" {
+			Set tAA = pRequest.TrakCareAssigningAuthority
+			Set tTarget = $Get(..AAOperationMap(tAA))
+		}
+		Else {
+			Set tStatus = ##class(HSPortal.Account.Identifier).GetActiveIdentifierListFromMRN(.tIdentifierList,pRequest.MRN)
+			If $$$ISERR(tStatus) {
+				Quit
+			}
+			For tIdentifierIndex=1:1:tIdentifierList.Count() {
+				Set tAA = tIdentifierList.GetAt(tIdentifierIndex).AssigningAuthority
+				Set tTarget = $Get(..AAOperationMap(tAA))
+				If (tTarget '= "") {
+					Quit
+				}
+			}
+		}
+		If (tTarget '= "") {
+			Set ..RequestSubmissionTarget = tTarget
+			Set ..RequestAssigningAuthority = tAA
+		}
+		Else {
+			Set tStatus = $$$ERROR($$$GeneralError,"Could not find TrakCare Assigning Authority for MRN "_pRequest.MRN)
+		}
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="OnResponse">
+<FormalSpec><![CDATA[request:%Library.Persistent,&response:%Library.Persistent,callrequest:%Library.Persistent,callresponse:%Library.Persistent,pCompletionKey:%String]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	// Nothing to do here
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="OnSlotActionRequest">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest,*pResponse:Vendor.TrakCare.Production.Message.Appointments.SlotActionResponse</FormalSpec>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		// add the TC patient ID
+		If (pRequest.PatientID = "") && (pRequest.MRN '= "") {
+			#Dim tPatientInfo As Vendor.TrakCare.Production.Message.Appointments.PatientInfoResponse
+			Set tStatus = ..GetPatientInfo(pRequest.MRN,.tPatientInfo)
+			If $$$ISERR(tStatus) {
+				Quit
+			}
+			Set pRequest.PatientID = tPatientInfo.PatientID
+			Set tStatus = pRequest.%Save()
+			If $$$ISERR(tStatus) {
+				Quit
+			}
+		}
+	
+		Set tStatus = ..SendRequestToOperation(pRequest,.pResponse)
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="OnSlotListRequest">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.SlotListRequest,*pResponse:Vendor.TrakCare.Production.Message.Appointments.SlotListResponse</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		// get service ID from arcitem... probably would not be needed anymore If new TC API implemented
+		If (pRequest.ServiceID = "") && (pRequest.OrderItemID '= "") {
+			#dim tService as Vendor.TrakCare.Production.Message.Appointments.Service
+			Set tStatus = ..GetServiceFromOrderItem(pRequest.OrderItemID,.tService)
+			If $$$ISERR(tStatus) {
+				Quit
+			}
+			If $isobject(tService) {
+				Set pRequest.ServiceID = tService.ServiceID
+			}
+			Set tStatus = pRequest.%Save()
+			If $$$ISERR(tStatus) {
+				Quit
+			}
+		}
+
+		// get patient ID from MRN
+		If (pRequest.PatientID = "") && (pRequest.MRN '= "") {
+			#Dim tPatientInfo As Vendor.TrakCare.Production.Message.Appointments.PatientInfoResponse
+			Set PatientID = ""
+			Set tStatus = ..GetPatientInfo(pRequest.MRN,.tPatientInfo)
+			If $$$ISERR(tStatus) {
+				Quit
+			}
+			Set pRequest.PatientID = tPatientInfo.PatientID
+			If (tPatientInfo.DateOfBirth '= "") {
+				Set pRequest.PatientAge = $ZDate($H,8)-$ZDate(tPatientInfo.DateOfBirth,8)\10000
+			}
+			Set pRequest.PatientSex = tPatientInfo.Sex
+			Set tStatus = pRequest.%Save()
+			If $$$ISERR(tStatus) {
+				Quit
+			}
+		}
+		Set tStatus = ..SendRequestToOperation(pRequest,.pResponse)
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="OnAppointmentListRequest">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.AppointmentListRequest,*pResponse:Vendor.TrakCare.Production.Message.Appointments.AppointmentListResponse</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		// get patient ID from MRN
+		If (pRequest.PatientID = "") && (pRequest.MRN '= "") {
+			#Dim tPatientInfo As Vendor.TrakCare.Production.Message.Appointments.PatientInfoResponse
+			Set tStatus = ..GetPatientInfo(pRequest.MRN,.tPatientInfo)
+			If $$$ISERR(tStatus) {
+				Quit
+			}
+			Set pRequest.PatientID = tPatientInfo.PatientID
+			Set tStatus = pRequest.%Save()
+			If $$$ISERR(tStatus) {
+				Quit
+			}
+		}
+		
+		Set tStatus = ..SendRequestToOperation(pRequest,.pResponse)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		For tAppointmentIndex=1:1:pResponse.Appointments.Count() {
+			#dim tAppointment as Vendor.TrakCare.Production.Message.Appointments.Appointment
+			#dim tLocation as Vendor.TrakCare.Production.Message.Appointments.Location
+			Set tAppointment = pResponse.Appointments.GetAt(tAppointmentIndex)
+			If (tAppointment.HospitalDescription = "") && (tAppointment.RoomDescription '= "") {
+				Set tStatus = ..GetLocation(tAppointment.RoomDescription,"",.tLocation)
+				If $$$ISERR(tStatus) {
+					Quit
+				}
+				If $IsObject(tLocation) {
+					Set tAppointment.HospitalDescription = tLocation.HospitalDescription
+				}
+			}
+		}
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="OnResourceListRequest">
+<FormalSpec>pRequest:Vendor.TrakCare.Production.Message.Appointments.ResourceListRequest,*pResponse:Vendor.TrakCare.Production.Message.Appointments.ResourceListResponse</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		// get service ID from arcitem
+		If (pRequest.ServiceID = "") && (pRequest.OrderItemID '= "") {
+			#dim tService as Vendor.TrakCare.Production.Message.Appointments.Service
+			Set tStatus = ..GetServiceFromOrderItem(pRequest.OrderItemID,.tService)
+			If $$$ISERR(tStatus) {
+				Quit
+			}
+			Set pRequest.ServiceID = tService.ServiceID
+			Set tStatus = pRequest.%Save()
+			If $$$ISERR(tStatus) {
+				Quit
+			}
+		}
+		
+		Set tStatus = ..SendRequestToOperationWithCaching(pRequest,.pResponse)
+	
+		If $$$ISOK(tStatus) {
+			For i=1:1:pResponse.Resources.Count() {
+				#dim tResource as Vendor.TrakCare.Production.Message.Appointments.Resource
+				#dim tLocation as Vendor.TrakCare.Production.Message.Appointments.Location
+				Set tResource = pResponse.Resources.GetAt(i)
+				If (tResource.HospitalDescription '= "") && (tResource.HospitalID = "") {
+					Set tStatus = ..GetLocation("",tResource.HospitalDescription,.tLocation)
+					If $$$ISERR(tStatus) {
+						Quit
+					}
+					If $isobject(tLocation) {
+						Set tResource.HospitalID = tLocation.HospitalID
+					}
+				}
+			}
+		}
+		If $$$ISOK(tStatus) {
+			Set tStatus = pResponse.%Save()
+		}
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="GetServiceFromOrderItem">
+<FormalSpec>pOrderItemID:%String,*pService:Vendor.TrakCare.Production.Message.Appointments.Service=""</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		#dim tServiceResponse as Vendor.TrakCare.Production.Message.Appointments.ServiceListResponse
+		Set tServiceRequest = ##class(Vendor.TrakCare.Production.Message.Appointments.ServiceListRequest).%New()
+		Set tServiceRequest.OrderItemID = pOrderItemID
+		Set tStatus = ..SendRequestToOperationWithCaching(tServiceRequest,.tServiceResponse)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		If (tServiceResponse.Services.Count() > 0) {
+			Set pService = tServiceResponse.Services.GetAt(1)
+		}
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="GetPatientInfo">
+<FormalSpec>pMRN:%String,*pPatientInfo:Vendor.TrakCare.Production.Message.Appointments.PatientInfoResponse=""</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		If (pMRN = "") {
+			Set tStatus = $$$ERROR($$$GeneralError,"Missing parameter MRN")
+			Quit
+		}
+	
+		Set tPatientInfoRequest = ##class(Vendor.TrakCare.Production.Message.Appointments.PatientInfoRequest).%New()
+		Set tPatientInfoRequest.MRN = pMRN
+		Set tStatus = ..SendRequestToOperationWithCaching(tPatientInfoRequest,.pPatientInfo)
+		If $$$ISERR(tStatus) { // try again, temporary workaround for TC-262701
+			Set tStatus = ..SendRequestToOperationWithCaching(tPatientInfoRequest,.pPatientInfo)
+		}	
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="GetLocation">
+<FormalSpec>pLocDescription:%String,pHospDescription:%String,*pLocation:Vendor.TrakCare.Production.Message.Appointments.Location=""</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		#dim tLocationResponse as Vendor.TrakCare.Production.Message.Appointments.LocationListResponse
+		Set tLocationRequest = ##class(Vendor.TrakCare.Production.Message.Appointments.LocationListRequest).%New()
+		Set tLocationRequest.LocationDescription = pLocDescription
+		Set tLocationRequest.HospitalDescription = pHospDescription
+		Set tStatus = ..SendRequestToOperationWithCaching(tLocationRequest,.tLocationResponse)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		If (tLocationResponse.Locations.Count() > 0) {
+			Set pLocation = tLocationResponse.Locations.GetAt(1)
+		}
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="SendRequestToOperationWithCaching">
+<Description>
+Send sync request to appointments operation, checking before is we can reuse previous exact same request
+Use this only on code tables like location, hospital, order items...</Description>
+<FormalSpec><![CDATA[pRequest:Vendor.TrakCare.Production.Message.Appointments.AbstractRequest,&pResponse:Vendor.TrakCare.Production.Message.Appointments.AbstractResponse]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Set tValidity = pRequest.CacheValidityInSecs
+		If (tValidity = "") { 
+			Set tValidity = ..CacheValidityInSecs 
+		}
+	
+		Set pRequest.TrakCareAssigningAuthority = ..RequestAssigningAuthority
+		Set tStatus = pRequest.%Save()
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		Set tStatus = pRequest.GetCachedResponse(tValidity,.pResponse)
+		If $$$ISERR(tStatus) {
+			Set tStatus = ..SendRequestToOperation(pRequest,.pResponse)
+			If $$$ISOK(tStatus) {
+				Set tStatus = pRequest.SetCachedResponse(pResponse)
+			}
+		}
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="SendRequestToOperation">
+<Description>
+Send sync request to appointments operation</Description>
+<FormalSpec><![CDATA[pRequest:Vendor.TrakCare.Production.Message.Appointments.AbstractRequest,&pResponse:Vendor.TrakCare.Production.Message.Appointments.AbstractResponse]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Set pRequest.TrakCareAssigningAuthority = ..RequestAssigningAuthority
+		Set tStatus = ..SendRequestSync(..RequestSubmissionTarget,pRequest,.pResponse)
+	}
+	Catch tException {
+		Set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DefaultData>AppointmentsProcessDefaultData</DefaultData>
+<Data name="AppointmentsProcessDefaultData">
+<Subscript>"AppointmentsProcess"</Subscript>
+<Value name="1">
+<Value>SubmissionTarget</Value>
+</Value>
+<Value name="2">
+<Value>CacheValidityInSecs</Value>
+</Value>
+<Value name="3">
+<Value>AssigningAuthorityOperationMap</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Service.AppointmentsService">
+<Description>
+TrakCare appointments Service
+</Description>
+<IncludeCode>HSPortal.Document.Include</IncludeCode>
+<Super>Ens.BusinessService</Super>
+<TimeChanged>65693,86368.301378</TimeChanged>
+<TimeCreated>65560,63543.588052</TimeCreated>
+
+<Parameter name="DOMAIN">
+<Default>HSPortal</Default>
+</Parameter>
+
+<Parameter name="SERVICENAME">
+<Default>TrakCare_AppointmentsService</Default>
+</Parameter>
+
+<Parameter name="SETTINGS">
+<Default>SubmissionTarget:Basic</Default>
+</Parameter>
+
+<Property name="SubmissionTarget">
+<Type>Ens.DataType.ConfigName</Type>
+<Required>1</Required>
+</Property>
+
+<Method name="OnProcessInput">
+<FormalSpec><![CDATA[pInput:%RegisteredObject,*pOutput:%RegisteredObject,&pHint:%String]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		If $data(pHint) && (pHint="ASYNC") {
+			// special async used on session cleanup to unlock lot
+			Set tStatus = ..SendRequestAsync(..SubmissionTarget,.pInput,.pOutput)
+		}
+		Else {
+			Set tStatus = ..SendRequestSync(..SubmissionTarget,.pInput,.pOutput)
+		}
+	}
+	Catch ex {
+		Set tStatus = ex.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="SendRequestToBusinessService">
+<Internal>1</Internal>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pRequest:%RegisteredObject,*pResponse:%RegisteredObject,&pHint:%String]]></FormalSpec>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {		
+		Set tStatus = ##class(Ens.Director).CreateBusinessService(..#SERVICENAME,.tService)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		Set tStatus = tService.ProcessInput(pRequest,.pResponse,.pHint)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+	}
+	Catch ex {
+		Set tStatus = ex.AsStatus()
+	}
+	
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="PatientInfoRequest">
+<Description>
+Fetch patient info, in particular used to retrieve TC Patient ID.</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pRequest:Vendor.TrakCare.Production.Message.Appointments.PatientInfoRequest,&pResponse:Vendor.TrakCare.Production.Message.Appointments.PatientInfoResponse]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = ..SendRequestToBusinessService(pRequest,.pResponse)
+	If $$$ISERR(tStatus) {
+		$$$LOGERROR("PatientInfoRequest: Failed to get patient info due to error: "_$System.Status.GetErrorText(tStatus)) 
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="ServiceListRequest">
+<Description>
+Fetch service list, including grouping information</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pRequest:Vendor.TrakCare.Production.Message.Appointments.ServiceListRequest,&pResponse:Vendor.TrakCare.Production.Message.Appointments.ServiceListResponse]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = ..SendRequestToBusinessService(pRequest,.pResponse)
+	If $$$ISERR(tStatus) {
+		$$$LOGERROR("ServiceListRequest: Failed to get service list due to error: "_$System.Status.GetErrorText(tStatus)) 
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="ResourceListRequest">
+<Description>
+Fetch resource list (care providers, location/hospital)</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pRequest:Vendor.TrakCare.Production.Message.Appointments.ResourceListRequest,&pResponse:Vendor.TrakCare.Production.Message.Appointments.ResourceListResponse]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = ..SendRequestToBusinessService(pRequest,.pResponse)
+	If $$$ISERR(tStatus) {
+		$$$LOGERROR("ResourceListRequest: Failed to get service list due to error: "_$System.Status.GetErrorText(tStatus)) 
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="SlotListRequest">
+<Description>
+Fetch available appointments slots</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pRequest:Vendor.TrakCare.Production.Message.Appointments.SlotListRequest,&pResponse:Vendor.TrakCare.Production.Message.Appointments.SlotListResponse]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = ..SendRequestToBusinessService(pRequest,.pResponse)
+	If $$$ISERR(tStatus) {
+		$$$LOGERROR("SlotListRequest Failed to get slot list due to error: "_$System.Status.GetErrorText(tStatus)) 
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="SlotActionRequest">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pRequest:Vendor.TrakCare.Production.Message.Appointments.SlotActionRequest,&pResponse:Vendor.TrakCare.Production.Message.Appointments.SlotActionResponse]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = ..SendRequestToBusinessService(pRequest,.pResponse)
+	If $$$ISERR(tStatus) {
+		$$$LOGERROR("SlotActionRequest Failed to perform slot action due to error: "_$System.Status.GetErrorText(tStatus)) 
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="LocationListRequest">
+<Description>
+Fetch location info, in particular used to retrieve tc hosp infos</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pRequest:Vendor.TrakCare.Production.Message.Appointments.LocationListRequest,&pResponse:Vendor.TrakCare.Production.Message.Appointments.LocationListResponse]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = ..SendRequestToBusinessService(pRequest,.pResponse)
+	If $$$ISERR(tStatus) {
+		$$$LOGERROR("LocationListRequest Failed to get service list due to error: "_$System.Status.GetErrorText(tStatus)) 
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="AppointmentListRequest">
+<Description>
+Fetch appointments list for patient</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pRequest:Vendor.TrakCare.Production.Message.Appointments.AppointmentListRequest,&pResponse:Vendor.TrakCare.Production.Message.Appointments.AppointmentListResponse]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = ..SendRequestToBusinessService(pRequest,.pResponse)
+	If $$$ISERR(tStatus) {
+		$$$LOGERROR("AppointmentListRequest Failed to get service list due to error: "_$System.Status.GetErrorText(tStatus)) 
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="Vendor.TrakCare.Production.Service.PatientDocumentService">
+<IncludeCode>HSPortal.Document.Include</IncludeCode>
+<StorageStrategy/>
+<Super>Ens.BusinessService</Super>
+<TimeChanged>65560,63543.588052</TimeChanged>
+<TimeCreated>65560,63543.588052</TimeCreated>
+
+<Parameter name="DOMAIN">
+<Default>HSPortal</Default>
+</Parameter>
+
+<Parameter name="SERVICENAME">
+<Default>TrakCare_PatientDocumentService</Default>
+</Parameter>
+
+<Parameter name="SETTINGS">
+<Default>SubmissionTarget:Basic</Default>
+</Parameter>
+
+<Property name="SubmissionTarget">
+<Type>Ens.DataType.ConfigName</Type>
+<Required>1</Required>
+</Property>
+
+<Method name="OnProcessInput">
+<FormalSpec><![CDATA[pInput:%RegisteredObject,*pOutput:%RegisteredObject,&pHint:%String]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Set tStatus = ..SendRequestSync(..SubmissionTarget,pInput)
+		If $$$ISERR(tStatus) {
+			Quit
+		}	
+	}
+	Catch ex {
+		Set tStatus = ex.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="GetResponse">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pRequestId:%String,&pResponse:Ens.Response,&pResponseStatus:%String,&pSessionId:%String]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	Try {
+		Set tStatus = ..CheckProcessInputAsyncStatus(pRequestId,.pResponse,.pSessionId)
+	}
+	Catch ex {
+		Set tStatus = ex.AsStatus()
+	}
+	If $$$ISOK(tStatus) {
+		Set pResponseStatus = $select($IsObject(pResponse):"Done",1:"Waiting")
+	} 
+	Else {
+		Set pResponseStatus = "Error"
+	}	
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="LaunchSDADocumentRequest">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pRequestID:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+		Set tStatus = $$$OK
+	Try {
+		Set tRequest = ##class(Vendor.TrakCare.Production.Message.SDAUploadRequest).%OpenId(pRequestID,,.tStatus)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		Set tStatus = ##class(Ens.Director).CreateBusinessService(..#SERVICENAME,.tService)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+		Set tStatus = tService.ProcessInput(tRequest,.tOutput)
+		If $$$ISERR(tStatus) {
+			Quit
+		}
+	}
+	Catch ex {
+		Set tStatus = ex.AsStatus()
+	}
+	If $$$ISERR(tStatus) {
+		$$$LOGERROR("Upload document: Failed to send document update due to error: "_$System.Status.GetErrorText(tStatus)) 
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+</Class>
+</Export>
